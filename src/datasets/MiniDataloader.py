@@ -6,9 +6,9 @@ from torch.utils.data import DataLoader, Dataset
 
 
 class MiniDataset(Dataset):
-    def __init__(self, dataloader, mini_batch_ids):
+    def __init__(self, dataloader, mini_dataset_ids):
         self.dataloader = dataloader
-        self.mini_batch_ids = mini_batch_ids
+        self.mini_dataset_ids = mini_dataset_ids
 
         self.datas = []
         self.labels = []
@@ -19,7 +19,7 @@ class MiniDataset(Dataset):
         for batch in self.dataloader:
             batch_data, batch_labels, batch_ids = zip(*batch)
             for data, label, id_value in zip(batch_data, batch_labels, batch_ids):
-                if id_value in self.mini_batch_ids:
+                if id_value in self.mini_dataset_ids:
                     self.datas.append(data)
                     self.labels.append(label)
                     self.ids.append(id_value)

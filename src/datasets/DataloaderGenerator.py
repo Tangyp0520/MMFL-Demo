@@ -2,8 +2,8 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-from ModelNetDataset import *
-from MiniDataloader import *
+from src.datasets.ModelNetDataset import *
+from src.datasets.MiniDataloader import *
 
 
 def generate_dataloader(dataset_type, batch_size, data_path=None):
@@ -52,10 +52,18 @@ def generate_dataloader(dataset_type, batch_size, data_path=None):
         return train_dataloader, test_dataloader
 
 
-def generate_mini_dataloader(dataloader, batch_size, mini_batch_ids, train=True):
-    mini_dataset = MiniDataset(dataloader, mini_batch_ids)
+def generate_mini_dataloader(dataloader, mini_dataset_batch_size, mini_dataset_ids, train=True):
+    """
+    根据全体数据集dataloader及选择的id列表生成新的dataloader
+    :param dataloader:
+    :param mini_dataset_batch_size:
+    :param mini_dataset_ids:
+    :param train:
+    :return:
+    """
+    mini_dataset = MiniDataset(dataloader, mini_dataset_ids)
     if train:
-        mini_dataloader = DataLoader(mini_dataset, batch_size=batch_size, shuffle=True)
+        mini_dataloader = DataLoader(mini_dataset, batch_size=mini_dataset_batch_size, shuffle=True)
     else:
-        mini_dataloader = DataLoader(mini_dataset, batch_size=batch_size, shuffle=False)
+        mini_dataloader = DataLoader(mini_dataset, batch_size=mini_dataset_batch_size, shuffle=False)
     return mini_dataloader
