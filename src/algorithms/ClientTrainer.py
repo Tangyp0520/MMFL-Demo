@@ -16,7 +16,7 @@ class ClientTrainer:
         self.local_round_num = local_round_num
         self.learning_rate = learning_rate
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model = ModelNetResNet18()
         self.head = copy.deepcopy(head)
         self.model.to(self.device)
@@ -37,16 +37,17 @@ class ClientTrainer:
         print(f'    Client Data Batch Size: {self.train_dataloader.batch_size}')
         print(f'    Client Learning Rate: {self.learning_rate}')
 
-    def generate_client_embedding(self, mini_dataset_ids):
+    def generate_client_embedding(self, mini_dataset_batch_size, mini_dataset_ids):
         """
         Generate client embedding
+        :param mini_dataset_batch_size:
         :param mini_dataset_ids: 数据集id列表
         :return: {'id': 'embedding'}
         """
         client_train_embeddings = {}
         client_test_embeddings = {}
 
-        mini_dataloader = generate_mini_dataloader(self.train_dataloader, 64, mini_dataset_ids)
+        mini_dataloader = generate_mini_dataloader(self.train_dataloader, mini_dataset_batch_size, mini_dataset_ids)
         self.model.eval()
         with torch.no_grad():
             for mini_batch in mini_dataloader:
@@ -64,7 +65,7 @@ class ClientTrainer:
         return client_train_embeddings, client_test_embeddings
 
     def train(self, head, client_train_embeddings, mini_dataset_batch_size, mini_dataset_ids):
-        print(f'    Training Client {self.client_id} is training...')
+        print(f'    Client {self.client_id} is training...')
         self.head = copy.deepcopy(head)
         self.head.eval()
         self.model.train()

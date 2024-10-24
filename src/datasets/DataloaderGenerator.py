@@ -3,7 +3,7 @@ import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from src.datasets.ModelNetDataset import *
-from src.datasets.MiniDataloader import *
+from src.datasets.MiniDataset import *
 
 
 def generate_dataloader(dataset_type, batch_size, data_path=None):

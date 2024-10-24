@@ -6,12 +6,15 @@ from src.algorithms.ClientTrainer import *
 
 class MMFl(object):
     def __init__(self, dataset_root_path):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.dataset_root_path = dataset_root_path
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.head_round_num = 20
         self.head_dataset_batch_size = 64
         self.head_train_dataloader, self.head_test_dataloader = generate_dataloader('ModelNet10',
                                                                                     self.head_dataset_batch_size,
-                                                                                    dataset_root_path + '/view1')
+                                                                                    dataset_root_path + '\\view1')
+        self.head_train_ids = []
+        self.read_dataset_ids()
 
         self.head = ClassifierModel()
         self.head.to(self.device)
@@ -28,7 +31,7 @@ class MMFl(object):
         for i in range(self.client_num):
             train_dataloader, test_dataloader = generate_dataloader('ModelNet10',
                                                                     self.client_dataset_batch_size,
-                                                                    dataset_root_path + '/view' + str(i + 1))
+                                                                    dataset_root_path + '\\view' + str(i + 1))
             self.client_trainers[i] = ClientTrainer(i, self.head, train_dataloader, test_dataloader)
             self.client_ids.append(i)
 
@@ -40,6 +43,14 @@ class MMFl(object):
         self.print_info()
         for _, client_trainer in self.client_trainers.items():
             client_trainer.print_info()
+
+    def read_dataset_ids(self):
+        root_dir = self.dataset_root_path + '\\view1'
+        for folder_name in os.listdir(root_dir):
+            folder_path = os.path.join(root_dir, folder_name, 'train')
+            if os.path.isdir(folder_path):
+                for file_name in os.listdir(folder_path):
+                    self.head_train_ids.append(file_name)
 
     def print_info(self):
         print(f'MMFL device: {self.device}')
@@ -57,22 +68,25 @@ class MMFl(object):
     def train(self, epoch):
         print(f'Global train epoch: {epoch}')
         # 随机获取256个样本id
-        all_ids = []
-        for batch in self.head_train_dataloader:
-            _, _, ids_in_batch = batch
-            all_ids.extend(ids_in_batch)
-        random_indices = torch.randperm(len(all_ids))[:self.mini_dataset_size]
-        self.mini_dataset_ids = [all_ids[i] for i in random_indices]
+        print(f'    Mini dataset ids generated...')
+        # all_ids = []
+        # for batch in self.head_train_dataloader:
+        #     _, _, ids_in_batch = batch
+        #     all_ids.extend(ids_in_batch)
+        random_indices = torch.randperm(len(self.head_train_ids))[:self.mini_dataset_size]
+        self.mini_dataset_ids = [self.head_train_ids[i] for i in random_indices]
 
         # 生成客户端训练嵌入集和测试嵌入集{'client id': {'id': 'embedding'}}
+        print(f'    Client embeddings generated...')
         clint_train_embeddings = {}
         clint_test_embeddings = {}
         for client_id, client_trainer in self.client_trainers.items():
-            this_train_embedding, this_test_embedding = client_trainer.generate_client_embedding(self.mini_dataset_ids)
+            this_train_embedding, this_test_embedding = client_trainer.generate_client_embedding(self.mini_dataset_batch_size, self.mini_dataset_ids)
             clint_train_embeddings[client_id] = this_train_embedding
             clint_test_embeddings[client_id] = this_test_embedding
 
         # 训练head
+        print(f'    Head is training...')
         self.head.train()
         mini_dataloader = generate_mini_dataloader(self.head_train_dataloader, self.mini_dataset_batch_size,
                                                    self.mini_dataset_ids)
@@ -96,6 +110,7 @@ class MMFl(object):
         self.scheduler.step()
 
         # 测试head
+        print(f'    Head is testing...')
         self.head.eval()
         correct = 0
         total = 0
@@ -117,5 +132,6 @@ class MMFl(object):
         print(f'Round {epoch+1:03d} head accuracy on test set: {(100 * correct / total):.2f}%')
         self.head_acc_rates.append(100 * correct / total)
 
+        print(f'    Client is training...')
         for client_id, client_trainer in self.client_trainers.items():
             client_trainer.train(self.head, clint_train_embeddings, self.mini_dataset_batch_size, self.mini_dataset_ids)

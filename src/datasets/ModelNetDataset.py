@@ -19,9 +19,9 @@ class ModelNetDataset(Dataset):
         for folder_name in os.listdir(self.root_dir):
             label = folder_name
             if self.train:
-                folder_path = os.path.join(self.root_dir, 'train', folder_name)
+                folder_path = os.path.join(self.root_dir, folder_name, 'train')
             else:
-                folder_path = os.path.join(self.root_dir, 'test', folder_name)
+                folder_path = os.path.join(self.root_dir, folder_name, 'test')
 
             if os.path.isdir(folder_path):
                 for file_name in os.listdir(folder_path):
