@@ -4,6 +4,7 @@ import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
 import torch.optim as optim
+
 from src.models.ModelNetResnet18 import *
 from src.datasets.DataloaderGenerator import *
 
@@ -18,9 +19,8 @@ class ClientTrainer:
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model = ModelNetResNet18()
-        self.head = copy.deepcopy(head)
+        self.head = None
         self.model.to(self.device)
-        self.head.to(self.device)
 
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
@@ -44,6 +44,7 @@ class ClientTrainer:
         :param mini_dataset_ids: 数据集id列表
         :return: {'id': 'embedding'}
         """
+        print(f'    Client {self.client_id} is generating embeddings...')
         client_train_embeddings = {}
         client_test_embeddings = {}
 
@@ -51,22 +52,24 @@ class ClientTrainer:
         self.model.eval()
         with torch.no_grad():
             for mini_batch in mini_dataloader:
-                data, labels, ids = mini_batch
+                data, _, ids = mini_batch
                 data = data.to(self.device)
                 mini_batch_embedding = self.model(data)
                 for i, id_value in enumerate(ids):
                     client_train_embeddings[id_value] = mini_batch_embedding[i]
             for test_batch in self.test_dataloader:
-                data, labels, ids = test_batch
+                data, _, ids = test_batch
                 data = data.to(self.device)
                 test_batch_embedding = self.model(data)
                 for i, id_value in enumerate(ids):
                     client_test_embeddings[id_value] = test_batch_embedding[i]
+        del mini_dataloader
         return client_train_embeddings, client_test_embeddings
 
     def train(self, head, client_train_embeddings, mini_dataset_batch_size, mini_dataset_ids):
         print(f'    Client {self.client_id} is training...')
         self.head = copy.deepcopy(head)
+        self.head.to(self.device)
         self.head.eval()
         self.model.train()
 
@@ -98,7 +101,7 @@ class ClientTrainer:
         correct = 0
         total = 0
         with torch.no_grad():
-            for i, data in enumerate(mini_dataloader, 0):
+            for i, data in enumerate(self.test_dataloader, 0):
                 inputs, labels, ids = data
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = self.model(inputs)
@@ -108,3 +111,18 @@ class ClientTrainer:
                 correct += (predicted == labels).sum().item()
         print(f'Client {self.client_id} accuracy on test set: {(100 * correct / total):.2f}%')
         self.client_acc_rates.append(100 * correct / total)
+
+        del self.head
+        del mini_dataloader
+
+    def test(self):
+        print(f'    Client {self.client_id} is testing...')
+        self.model.eval()
+        with torch.no_grad():
+            for i, data in enumerate(self.test_dataloader, 0):
+                inputs, labels, ids = data
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
+                outputs = self.model(inputs)
+                print(outputs)
+
+

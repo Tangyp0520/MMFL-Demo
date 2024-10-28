@@ -6,19 +6,15 @@ from torch.utils.data import DataLoader, Dataset
 
 
 class MiniDataset(Dataset):
-    def __init__(self, dataloader, mini_dataset_ids):
+    def __init__(self, dataloader, mini_dataset_ids, transform=None):
         self.dataloader = dataloader
         self.mini_dataset_ids = mini_dataset_ids
+        self.transform = transform
 
         self.datas = []
         self.labels = []
         self.ids = []
         self._load_dataset()
-        print(self.datas)
-        print(self.labels)
-        print(self.ids)
-        print(len(self.datas))
-        print(len(self.labels) == len(self.ids) and len(self.datas) == len(self.labels))
 
     def _load_dataset(self):
         for batch in self.dataloader:
@@ -33,4 +29,12 @@ class MiniDataset(Dataset):
         return len(self.datas)
 
     def __getitem__(self, idx):
-        return self.datas[idx], self.labels[idx], self.ids[idx]
+        image = self._load_image(idx)
+        label = self.labels[idx]
+        id_value = self.ids[idx]
+        if self.transform:
+            image = self.transform(image)
+        return image, label, id_value
+
+    def _load_image(self, idx):
+        return Image.open(self.datas[idx])

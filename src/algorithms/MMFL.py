@@ -1,3 +1,5 @@
+import gc
+
 import torch
 import torch.nn as nn
 from src.models.ClassfierModel import *
@@ -9,7 +11,7 @@ class MMFl(object):
         self.dataset_root_path = dataset_root_path
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.head_round_num = 20
-        self.head_dataset_batch_size = 64
+        self.head_dataset_batch_size = 1
         self.head_train_dataloader, self.head_test_dataloader = generate_dataloader('ModelNet10',
                                                                                     self.head_dataset_batch_size,
                                                                                     dataset_root_path + '\\view1')
@@ -25,7 +27,7 @@ class MMFl(object):
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
 
         self.client_num = 4
-        self.client_dataset_batch_size = 64
+        self.client_dataset_batch_size = 1
         self.client_trainers = {}
         self.client_ids = []
         for i in range(self.client_num):
@@ -37,7 +39,7 @@ class MMFl(object):
 
         self.mini_dataset_size = 256
         self.mini_dataset_ids = []
-        self.mini_dataset_batch_size = 64
+        self.mini_dataset_batch_size = 1
 
         self.head_acc_rates = []
         self.print_info()
@@ -135,3 +137,6 @@ class MMFl(object):
         print(f'    Client is training...')
         for client_id, client_trainer in self.client_trainers.items():
             client_trainer.train(self.head, clint_train_embeddings, self.mini_dataset_batch_size, self.mini_dataset_ids)
+
+        del mini_dataloader
+        gc.collect()

@@ -4,6 +4,19 @@ import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Dataset
 
+label_str_to_num = {
+    'bathtub': 0,
+    'bed': 1,
+    'chair': 2,
+    'desk': 3,
+    'dresser': 4,
+    'monitor': 5,
+    'night_stand': 6,
+    'sofa': 7,
+    'table': 8,
+    'toilet': 9,
+}
+
 
 class ModelNetDataset(Dataset):
     def __init__(self, root_dir, train=True, transform=None):
@@ -17,7 +30,7 @@ class ModelNetDataset(Dataset):
 
     def _load_dataset(self):
         for folder_name in os.listdir(self.root_dir):
-            label = folder_name
+            label = label_str_to_num[folder_name]
             if self.train:
                 folder_path = os.path.join(self.root_dir, folder_name, 'train')
             else:
@@ -34,12 +47,18 @@ class ModelNetDataset(Dataset):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
-        image = self._load_image(idx)
-        label = self.labels[idx]
-        id_value = self.ids[idx]
-        if self.transform:
-            image = self.transform(image)
-        return image, label, id_value
+        if self.train:
+            image = self.image_paths[idx]
+            label = self.labels[idx]
+            id_value = self.ids[idx]
+            return image, label, id_value
+        else:
+            image = self._load_image(idx)
+            label = self.labels[idx]
+            id_value = self.ids[idx]
+            if self.transform:
+                image = self.transform(image)
+            return image, label, id_value
 
     def _load_image(self, idx):
-        return Image.open(self.image_paths[idx])
+        return Image.open(self.image_paths[idx]).convert('RGB')

@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -40,15 +41,16 @@ def generate_dataloader(dataset_type, batch_size, data_path=None):
     elif dataset_type == 'ModelNet10':
         # 定义数据预处理转换
         transform = transforms.Compose([
+            transforms.Lambda(convert_four_to_three_channels),
             transforms.ToTensor(),
-            transforms.Normalize((0.5,), (0.5,))
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
         # 加载ModelNet训练集
         train_dataset = ModelNetDataset(root_dir=data_path, train=True, transform=transform)
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         # 加载ModelNet测试集
         test_dataset = ModelNetDataset(root_dir=data_path, train=False, transform=transform)
-        test_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
         return train_dataloader, test_dataloader
 
 
@@ -61,9 +63,23 @@ def generate_mini_dataloader(dataloader, mini_dataset_batch_size, mini_dataset_i
     :param train:
     :return:
     """
-    mini_dataset = MiniDataset(dataloader, mini_dataset_ids)
+    # 定义数据预处理转换
+    transform = transforms.Compose([
+        transforms.Lambda(convert_four_to_three_channels),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+    mini_dataset = MiniDataset(dataloader, mini_dataset_ids, transform)
     if train:
         mini_dataloader = DataLoader(mini_dataset, batch_size=mini_dataset_batch_size, shuffle=True)
     else:
         mini_dataloader = DataLoader(mini_dataset, batch_size=mini_dataset_batch_size, shuffle=False)
     return mini_dataloader
+
+
+def convert_four_to_three_channels(img):
+    img_array = np.array(img)
+    if img_array.shape[2] == 4:
+        return Image.fromarray(img_array[:, :, :3])
+    else:
+        return img
