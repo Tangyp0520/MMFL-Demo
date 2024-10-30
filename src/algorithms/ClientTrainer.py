@@ -17,7 +17,7 @@ class ClientTrainer:
         self.local_round_num = local_round_num
         self.learning_rate = learning_rate
 
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = ModelNetResNet18()
         self.head = None
         self.model.to(self.device)
@@ -79,21 +79,22 @@ class ClientTrainer:
             for i, data in enumerate(mini_dataloader, 0):
                 inputs, labels, ids = data
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
+
                 self.optimizer.zero_grad()
                 outputs = self.model(inputs)
                 head_outputs = self.head(outputs)
                 loss = self.criterion(head_outputs, labels)
                 # 根据样本id获取其余客户端对应embedding 根据此embedding获得损失加上本客户端新生embedding并平均 将平均损失作为整体损失反向传播
-                total_loss = loss.item()
+                total_loss = loss
                 for client_id, client_embedding in client_train_embeddings.items():
                     if client_id != self.client_id:
-                        data = [client_embedding[id_value] for id_value in ids]
-                        data = torch.tensor(data).to(self.device)
-                        this_outputs = self.head(data)
+                        other_client_inputs = torch.stack([client_embedding[id_value] for id_value in ids], dim=0)
+
+                        this_outputs = self.head(other_client_inputs)
                         this_loss = self.criterion(this_outputs, labels)
-                        total_loss += this_loss.item()
+                        total_loss += this_loss
                 total_loss /= len(client_train_embeddings)
-                torch.tensor(total_loss).backward()
+                total_loss.backward()
                 self.optimizer.step()
         self.scheduler.step()
 
@@ -109,7 +110,7 @@ class ClientTrainer:
                 _, predicted = torch.max(head_outputs, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
-        print(f'Client {self.client_id} accuracy on test set: {(100 * correct / total):.2f}%')
+        print(f'    Client {self.client_id} accuracy on test set: {(100 * correct / total):.2f}%')
         self.client_acc_rates.append(100 * correct / total)
 
         del self.head
@@ -121,6 +122,7 @@ class ClientTrainer:
         with torch.no_grad():
             for i, data in enumerate(self.test_dataloader, 0):
                 inputs, labels, ids = data
+                print(inputs.shape)
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = self.model(inputs)
                 print(outputs)

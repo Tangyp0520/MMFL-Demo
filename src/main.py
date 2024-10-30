@@ -1,3 +1,9 @@
+import sys
+sys.path.append('./')
+sys.path.append('../')
+sys.path.append('../../')
+
+
 import argparse
 import datetime
 
@@ -10,7 +16,8 @@ args = parser.parse_args()
 
 if __name__ == '__main__':
     print("This is MMFL Demo")
-    dataset_root_path = 'D:\\.download\\ModelNet10\\dataset'
+    # dataset_root_path = 'D:\\.download\\ModelNet10\\dataset'
+    dataset_root_path = '/home/data2/duwenfeng/datasets/ModelNet10'
 
     print('MMFL train start...')
     print(f'Global Round Num: 100')
