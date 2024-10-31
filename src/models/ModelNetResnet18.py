@@ -12,7 +12,8 @@ class ModelNetResNet18(nn.Module):
     def __init__(self):
         super(ModelNetResNet18, self).__init__()
         # 加载预训练的 ResNet18
-        resnet18 = models.resnet18(weights='ResNet18_Weights.DEFAULT')
+        # resnet18 = models.resnet18(weights='ResNet18_Weights.DEFAULT')
+        resnet18 = models.resnet18()
         # 修改第一层卷积层以适应 154*154 输入
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         # 加载 ResNet18 的剩余层

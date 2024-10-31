@@ -1,8 +1,8 @@
 import sys
+
 sys.path.append('./')
 sys.path.append('../')
 sys.path.append('../../')
-
 
 import argparse
 import datetime
@@ -28,15 +28,26 @@ if __name__ == '__main__':
     print('MMFL train end.')
 
     print('Save result...')
-    head_acc_rates = mmfl.head_acc_rates
-    client_acc_rates = {}
+    head_train_acc_rates = mmfl.head_train_acc_rates
+    client_train_acc_rates = {}
     for client_id, client_trainer in mmfl.client_trainers.items():
-        client_acc_rates[client_id] = client_trainer.client_acc_rates
+        client_train_acc_rates[client_id] = client_trainer.client_train_acc_rates
 
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y-%m-%d')
-    excel_file_name = (date_str
+    excel_file_name = ('Train acc ' + date_str
                        + '_HeadRoundNum' + mmfl.head_round_num
                        + '_HeadLearnRate' + mmfl.head_learn_rate)
-    save_acc_to_excel(excel_file_name, head_acc_rates, client_acc_rates)
+    save_acc_to_excel(excel_file_name, head_train_acc_rates, client_train_acc_rates)
 
+    head_test_acc_rates = mmfl.head_test_acc_rates
+    client_test_acc_rates = {}
+    for client_id, client_trainer in mmfl.client_trainers.items():
+        client_test_acc_rates[client_id] = client_trainer.client_test_acc_rates
+
+    current_time = datetime.datetime.now()
+    date_str = current_time.strftime('%Y-%m-%d')
+    excel_file_name = ('Test acc '+date_str
+                       + '_HeadRoundNum' + mmfl.head_round_num
+                       + '_HeadLearnRate' + mmfl.head_learn_rate)
+    save_acc_to_excel(excel_file_name, head_test_acc_rates, client_test_acc_rates)
