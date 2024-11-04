@@ -107,6 +107,7 @@ class ClientTrainer:
                             head_inputs = torch.cat(
                                 (head_inputs, torch.stack([client_embedding[id_value] for id_value in ids], dim=0)),
                                 dim=1)
+                head_inputs = head_inputs.to(self.device)
                 head_outputs = self.head(head_inputs)
                 _, predicted = torch.max(head_outputs, 1)
                 train_total += labels.size(0)
@@ -117,7 +118,7 @@ class ClientTrainer:
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
-        print(f'    Client {self.client_id} accuracy on train set: {(100 * train_correct / train_total):.2f}%')
+        # print(f'    Client {self.client_id} accuracy on train set: {(100 * train_correct / train_total):.2f}%')
         self.client_train_acc_rates.append(100 * train_correct / train_total)
 
         self.head.eval()
@@ -143,8 +144,10 @@ class ClientTrainer:
                             head_inputs = torch.cat(
                                 (head_inputs, torch.stack([client_embedding[id_value] for id_value in ids], dim=0)),
                                 dim=1)
+                head_inputs = head_inputs.to(self.device)
                 head_outputs = self.head(head_inputs)
                 _, predicted = torch.max(head_outputs, 1)
+                # print(predicted)
                 test_total += labels.size(0)
                 test_correct += (predicted == labels).sum().item()
         print(f'    Client {self.client_id} accuracy on test set: {(100 * test_correct / test_total):.2f}%')

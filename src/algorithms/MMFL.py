@@ -75,6 +75,7 @@ class MMFl(object):
         print(f'    Mini dataset ids generated...')
         random_indices = torch.randperm(len(self.head_train_ids))[:self.mini_dataset_size]
         self.mini_dataset_ids = [self.head_train_ids[i] for i in random_indices]
+        # self.mini_dataset_batch_size = self.head_train_ids
 
         # 生成客户端训练嵌入集和测试嵌入集{'client id': {'id': 'embedding'}}
         print(f'    Client embeddings generated...')
@@ -91,6 +92,7 @@ class MMFl(object):
         train_total = 0
         mini_dataloader = generate_mini_dataloader(self.head_train_dataloader, self.mini_dataset_batch_size,
                                                    self.mini_dataset_ids)
+        loss_list = []
         for server_epoch in range(self.head_round_num):
             for i, data in enumerate(mini_dataloader):
                 _, labels, ids = data
@@ -102,6 +104,7 @@ class MMFl(object):
                     else:
                         inputs = torch.cat(
                             (inputs, torch.stack([client_train_embedding[id_value] for id_value in ids], dim=0)), dim=1)
+                inputs = inputs.to(self.device)
                 outputs = self.head(inputs)
                 _, predicted = torch.max(outputs.data, 1)
                 train_total += labels.size(0)
@@ -110,9 +113,11 @@ class MMFl(object):
                 self.optimizer.zero_grad()
                 loss = self.criterion(outputs, labels)
                 loss.backward()
+                loss_list.append(loss.item())
                 self.optimizer.step()
             self.scheduler.step()
-        print(f'Round {epoch + 1:03d} head accuracy on train set: {(100 * train_correct / train_total):.2f}%')
+        # print(f'Round {epoch + 1:03d} head accuracy on train set: {(100 * train_correct / train_total):.2f}%')
+        # print(loss_list)
         self.head_train_acc_rates.append(100 * train_correct / train_total)
 
         print(f'    Head is testing...')
@@ -131,12 +136,13 @@ class MMFl(object):
                     else:
                         inputs = torch.cat(
                             (inputs, torch.stack([client_test_embedding[id_value] for id_value in ids], dim=0)), dim=1)
+                inputs = inputs.to(self.device)
                 outputs = self.head(inputs)
 
                 _, predicted = torch.max(outputs.data, 1)
                 test_total += labels.size(0)
                 test_correct += (predicted == labels).sum().item()
-        print(f'Round {epoch+1:03d} head accuracy on test set: {(100 * test_correct / test_total):.2f}%')
+        print(f'    Round {epoch+1:03d} head accuracy on test set: {(100 * test_correct / test_total):.2f}%')
         self.head_test_acc_rates.append(100 * test_correct / test_total)
 
         print(f'    Client is training...')

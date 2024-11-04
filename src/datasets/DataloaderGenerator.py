@@ -65,7 +65,9 @@ def generate_mini_dataloader(dataloader, mini_dataset_batch_size, mini_dataset_i
     """
     # 定义数据预处理转换
     transform = transforms.Compose([
-        transforms.Lambda(convert_four_to_three_channels),
+        # transforms.Lambda(convert_four_to_three_channels),
+        # transforms.Resize(256),
+        # transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
