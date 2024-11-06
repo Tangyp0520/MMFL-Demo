@@ -9,7 +9,7 @@ def save_acc_to_excel(excel_file_name, head_acc_rates, client_acc_rates):
     for client_id, client_acc_rate in client_acc_rates.items():
         data_dict[f'Client {client_id} Acc'] = client_acc_rate
     df = pd.DataFrame.from_dict(data_dict)
-    with pd.ExcelWriter(excel_file_name, engine='openpyxl', mode='a' if os.path.exists(excel_file_path) else 'w') as writer:
+    with pd.ExcelWriter(excel_file_path, engine='openpyxl', mode='a' if os.path.exists(excel_file_path) else 'w') as writer:
         df.to_excel(writer, sheet_name='Accuracies', index=False)
 
 

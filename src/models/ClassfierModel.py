@@ -24,35 +24,94 @@ import torch.nn as nn
 #         x = self.fc3(x)
 #         return self.softmax(x)
 
+# class ClassifierModel(nn.Module):
+#     def __init__(self):
+#         super(ClassifierModel, self).__init__()
+#         self.conv1 = nn.Conv1d(in_channels=1, out_channels=32, kernel_size=3)
+#         self.pool1 = nn.MaxPool1d(kernel_size=2)
+#         self.conv2 = nn.Conv1d(in_channels=32, out_channels=64, kernel_size=3)
+#         self.pool2 = nn.MaxPool1d(kernel_size=2)
+#         self.flatten = nn.Flatten()
+#
+#         # num_features = 64 * ((256*4 - 4) // 2 - 4) // 2 kernel_size=5
+#         # num_features = 16256 2层卷积
+#         num_features = 16352
+#         self.fc1 = nn.Linear(num_features, 128)
+#         self.fc2 = nn.Linear(128, 10)
+#         # self.relu = nn.ReLU()
+#         self.relu = nn.PReLU()
+#         self.softmax = nn.Softmax(dim=1)
+#
+#     def forward(self, x):
+#         print('--------')
+#         print(x)
+#         x = x.unsqueeze(1)
+#         x = self.relu(self.conv1(x))
+#         x = self.pool1(x)
+#         print(x)
+#         # x = self.relu(self.conv2(x))
+#         # x = self.pool2(x)
+#         x = self.flatten(x)
+#         print(x)
+#         x = self.relu(self.fc1(x))
+#         print(x)
+#         return self.softmax(self.fc2(x))
+
+
+# class ClassifierModel(nn.Module):
+#     def __init__(self):
+#         super(ClassifierModel, self).__init__()
+#         # 第一层全连接层
+#         self.fc1 = nn.Linear(128, 64)
+#         # 第二层全连接层
+#         self.fc2 = nn.Linear(64, 10)
+#         # 添加 L2 正则化
+#         self.l2_reg = nn.MSELoss()
+#         self.dropout = nn.Dropout(p=0.5)
+#         self.relu = nn.PReLU()
+#
+#     def forward(self, x):
+#         x = self.relu(self.fc1(x))
+#         x = self.dropout(x)
+#         return self.fc2(x)
+#
+#     def l2_regularization_loss(self):
+#         reg_loss = 0
+#         for param in self.parameters():
+#             reg_loss += torch.norm(param, 2)
+#         return reg_loss
+
+
 class ClassifierModel(nn.Module):
     def __init__(self):
         super(ClassifierModel, self).__init__()
-        self.conv1 = nn.Conv1d(in_channels=1, out_channels=32, kernel_size=3)
-        self.pool1 = nn.MaxPool1d(kernel_size=2)
-        self.conv2 = nn.Conv1d(in_channels=32, out_channels=64, kernel_size=3)
-        self.pool2 = nn.MaxPool1d(kernel_size=2)
-        self.flatten = nn.Flatten()
-
-        # num_features = 64 * ((256*4 - 4) // 2 - 4) // 2 kernel_size=5
-        # num_features = 16256 2层卷积
-        num_features = 16352
-        self.fc1 = nn.Linear(num_features, 128)
-        self.fc2 = nn.Linear(128, 10)
-        # self.relu = nn.ReLU()
+        self.conv1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1)
         self.relu = nn.PReLU()
-        self.softmax = nn.Softmax(dim=1)
+        self.pool = nn.MaxPool1d(kernel_size=2, stride=2)
+        self.dropout = nn.Dropout(p=0.5)
+        self.fc1 = nn.Linear(32 * 32, 128)
+        self.fc2 = nn.Linear(128, 10)
+        self.l2_reg = nn.MSELoss()
 
     def forward(self, x):
-        print('--------')
-        print(x)
         x = x.unsqueeze(1)
         x = self.relu(self.conv1(x))
-        x = self.pool1(x)
-        print(x)
-        # x = self.relu(self.conv2(x))
-        # x = self.pool2(x)
-        x = self.flatten(x)
-        print(x)
-        x = self.relu(self.fc1(x))
-        print(x)
-        return self.softmax(self.fc2(x))
+        x = self.pool(x)
+
+        x = self.relu(self.conv2(x))
+        x = self.pool(x)
+        x = self.dropout(x)
+
+        x = x.view(x.size(0), -1)
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.dropout(x)
+        x = self.fc2(x)
+        return x
+
+    def l2_regularization_loss(self):
+        reg_loss = 0
+        for param in self.parameters():
+            reg_loss += torch.norm(param, 2)**2
+        return reg_loss

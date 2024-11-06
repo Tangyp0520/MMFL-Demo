@@ -36,9 +36,9 @@ import torchvision.models as models
 #         x = self.fc(x)
 #         return x
 
-class ModelNetResNet18(nn.Module):
+class Resnet18ForModelNet(nn.Module):
     def __init__(self):
-        super(ModelNetResNet18, self).__init__()
+        super(Resnet18ForModelNet, self).__init__()
         # 加载预训练的 ResNet18 模型，并去除最后的全连接层
         self.resnet = models.resnet18(weights='ResNet18_Weights.DEFAULT')
         self.resnet = nn.Sequential(*list(self.resnet.children())[:-1])

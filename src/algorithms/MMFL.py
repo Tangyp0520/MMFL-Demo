@@ -12,34 +12,29 @@ class MMFl(object):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.head_round_num = 20
         self.head_dataset_batch_size = 64
-        self.head_train_dataloader, self.head_test_dataloader = generate_dataloader('ModelNet10',
-                                                                                    self.head_dataset_batch_size,
-                                                                                    dataset_root_path + '/view1')
+        self.head_train_dataloader, self.head_test_dataloader = generate_dataloader('MNIST', self.head_dataset_batch_size, dataset_root_path)
         self.head_train_ids = []
         self.read_dataset_ids()
 
         self.head = ClassifierModel()
         self.head.to(self.device)
-        self.head_learn_rate = 0.01
+        self.head_learn_rate = 0.001
         self.criterion = nn.CrossEntropyLoss().to(self.device)
-        self.optimizer = torch.optim.SGD(self.head.parameters(), lr=self.head_learn_rate, momentum=0.9,
-                                         weight_decay=5e-4)
+        self.optimizer = torch.optim.SGD(self.head.parameters(), lr=self.head_learn_rate, momentum=0.9, weight_decay=5e-4)
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
 
-        self.client_num = 4
-        self.client_dataset_batch_size = 64
+        self.client_num = 2
+        self.client_dataset_batch_size = 256
         self.client_trainers = {}
         self.client_ids = []
-        for i in range(self.client_num):
-            train_dataloader, test_dataloader = generate_dataloader('ModelNet10',
-                                                                    self.client_dataset_batch_size,
-                                                                    dataset_root_path + '/view' + str(i + 1))
-            self.client_trainers[i] = ClientTrainer(i, self.head, train_dataloader, test_dataloader)
+        for i, (dataset_type, color) in enumerate([('MNIST', False), ('MNIST-M', True)]):
+            train_dataloader, test_dataloader = generate_dataloader(dataset_type, self.client_dataset_batch_size, dataset_root_path)
+            self.client_trainers[i] = ClientTrainer(i, self.head, train_dataloader, test_dataloader, color=color)
             self.client_ids.append(i)
 
-        self.mini_dataset_size = 256
+        self.mini_dataset_size = 1024
         self.mini_dataset_ids = []
-        self.mini_dataset_batch_size = 64
+        self.mini_dataset_batch_size = 256
 
         self.head_train_acc_rates = []
         self.head_test_acc_rates = []
@@ -49,12 +44,10 @@ class MMFl(object):
             # client_trainer.test()
 
     def read_dataset_ids(self):
-        root_dir = self.dataset_root_path + '/view1'
-        for folder_name in os.listdir(root_dir):
-            folder_path = os.path.join(root_dir, folder_name, 'train')
-            if os.path.isdir(folder_path):
-                for file_name in os.listdir(folder_path):
-                    self.head_train_ids.append(file_name)
+        for batch in self.head_train_dataloader:
+            _, _, batch_ids = batch
+            for id_value in batch_ids:
+                self.head_train_ids.append(id_value.item())
 
     def print_info(self):
         print(f'MMFL device: {self.device}')
@@ -64,7 +57,6 @@ class MMFl(object):
         print(f'Head Dataset Batch Size: {self.head_dataset_batch_size}')
         print(f'Head Learning rate: {self.head_learn_rate}')
         print(f'Client Num: {self.client_num}')
-        print(f'Client Dataset: ModelNet10 view i')
         print(f'Client Dataset Batch Size: {self.client_dataset_batch_size}')
         print(f'Mini Dataset Size: {self.mini_dataset_size}')
         print(f'Mini Dataset Batch Size: {self.mini_dataset_batch_size}')
@@ -75,35 +67,32 @@ class MMFl(object):
         print(f'    Mini dataset ids generated...')
         random_indices = torch.randperm(len(self.head_train_ids))[:self.mini_dataset_size]
         self.mini_dataset_ids = [self.head_train_ids[i] for i in random_indices]
-        # self.mini_dataset_batch_size = self.head_train_ids
 
         # 生成客户端训练嵌入集和测试嵌入集{'client id': {'id': 'embedding'}}
         print(f'    Client embeddings generated...')
-        clint_train_embeddings = {}
-        clint_test_embeddings = {}
+        client_train_embeddings = {}
+        client_test_embeddings = {}
         for client_id, client_trainer in self.client_trainers.items():
             this_train_embedding, this_test_embedding = client_trainer.generate_client_embedding(self.mini_dataset_batch_size, self.mini_dataset_ids)
-            clint_train_embeddings[client_id] = this_train_embedding
-            clint_test_embeddings[client_id] = this_test_embedding
+            client_train_embeddings[client_id] = this_train_embedding
+            client_test_embeddings[client_id] = this_test_embedding
 
         print(f'    Head is training...')
         self.head.train()
         train_correct = 0
         train_total = 0
-        mini_dataloader = generate_mini_dataloader(self.head_train_dataloader, self.mini_dataset_batch_size,
-                                                   self.mini_dataset_ids)
+        mini_dataloader = generate_mini_dataloader(self.head_train_dataloader, self.mini_dataset_batch_size, self.mini_dataset_ids, False)
         loss_list = []
         for server_epoch in range(self.head_round_num):
             for i, data in enumerate(mini_dataloader):
                 _, labels, ids = data
                 labels = labels.to(self.device)
                 inputs = None
-                for _, client_train_embedding in clint_train_embeddings.items():
+                for _, client_train_embedding in client_train_embeddings.items():
                     if inputs is None:
-                        inputs = torch.stack([client_train_embedding[id_value] for id_value in ids], dim=0)
+                        inputs = torch.stack([client_train_embedding[id_value.item()] for id_value in ids], dim=0)
                     else:
-                        inputs = torch.cat(
-                            (inputs, torch.stack([client_train_embedding[id_value] for id_value in ids], dim=0)), dim=1)
+                        inputs = torch.cat((inputs, torch.stack([client_train_embedding[id_value.item()] for id_value in ids], dim=0)), dim=1)
                 inputs = inputs.to(self.device)
                 outputs = self.head(inputs)
                 _, predicted = torch.max(outputs.data, 1)
@@ -112,12 +101,12 @@ class MMFl(object):
 
                 self.optimizer.zero_grad()
                 loss = self.criterion(outputs, labels)
-                loss.backward()
-                loss_list.append(loss.item())
+                l2_loss = self.head.l2_regularization_loss()
+                total_loss = loss + 0.001*l2_loss
+                total_loss.backward()
+                loss_list.append(total_loss.item())
                 self.optimizer.step()
             self.scheduler.step()
-        # print(f'Round {epoch + 1:03d} head accuracy on train set: {(100 * train_correct / train_total):.2f}%')
-        # print(loss_list)
         self.head_train_acc_rates.append(100 * train_correct / train_total)
 
         print(f'    Head is testing...')
@@ -130,24 +119,26 @@ class MMFl(object):
                 labels = labels.to(self.device)
                 # 根据样本id获取个客户端对应embedding 根据此embedding获得输出并将平均，获取输出结果并判断准确率
                 inputs = None
-                for _, client_test_embedding in clint_test_embeddings.items():
+                for _, client_test_embedding in client_test_embeddings.items():
                     if inputs is None:
-                        inputs = torch.stack([client_test_embedding[id_value] for id_value in ids], dim=0)
+                        inputs = torch.stack([client_test_embedding[id_value.item()] for id_value in ids], dim=0)
                     else:
-                        inputs = torch.cat(
-                            (inputs, torch.stack([client_test_embedding[id_value] for id_value in ids], dim=0)), dim=1)
+                        inputs = torch.cat((inputs, torch.stack([client_test_embedding[id_value.item()] for id_value in ids], dim=0)), dim=1)
                 inputs = inputs.to(self.device)
                 outputs = self.head(inputs)
 
                 _, predicted = torch.max(outputs.data, 1)
+                # print(f'labels: {labels}')
+                # print(f'predicted: {predicted}')
                 test_total += labels.size(0)
                 test_correct += (predicted == labels).sum().item()
+        print(f'    Head history accuracy on test set: {self.head_test_acc_rates}')
         print(f'    Round {epoch+1:03d} head accuracy on test set: {(100 * test_correct / test_total):.2f}%')
         self.head_test_acc_rates.append(100 * test_correct / test_total)
 
         print(f'    Client is training...')
         for client_id, client_trainer in self.client_trainers.items():
-            client_trainer.train(self.head, clint_train_embeddings, clint_test_embeddings, self.mini_dataset_batch_size, self.mini_dataset_ids)
+            client_trainer.train(self.head, client_train_embeddings, client_test_embeddings, self.mini_dataset_batch_size, self.mini_dataset_ids)
 
         del mini_dataloader
         gc.collect()
