@@ -20,35 +20,42 @@ if __name__ == '__main__':
     # dataset_root_path = '/home/data2/duwenfeng/datasets/ModelNet10'
     # dataset_root_path = 'D:\.download\MNIST-M\data\mnist_m'
     dataset_root_path = '/home/data2/duwenfeng/datasets/MNIST'
+    global_round_num = 50
 
     print('MMFL train start...')
-    print(f'Global Round Num: 100')
+    print(f'Global Round Num: {global_round_num}')
     print(f'Dataset Root Path: {dataset_root_path}')
     mmfl = MMFl(dataset_root_path)
-    for epoch in range(100):
+    for epoch in range(global_round_num):
         mmfl.train(epoch)
     print('MMFL train end.')
 
     print('Save result...')
-    head_train_acc_rates = mmfl.head_train_acc_rates
-    client_train_acc_rates = {}
-    for client_id, client_trainer in mmfl.client_trainers.items():
-        client_train_acc_rates[client_id] = client_trainer.client_train_acc_rates
-
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y-%m-%d')
-    excel_file_name = ('Train acc ' + date_str
+
+    head_train_loss_lists = mmfl.head_train_loss_list
+    client_train_loss_lists = {}
+    for client_id, client_trainer in mmfl.client_trainers.items():
+        client_train_loss_lists[client_id] = client_trainer.client_train_loss_list
+    excel_file_name = ('Train Loss ' + date_str
                        + '_HeadRoundNum' + mmfl.head_round_num
                        + '_HeadLearnRate' + mmfl.head_learn_rate)
-    save_acc_to_excel(excel_file_name, head_train_acc_rates, client_train_acc_rates)
+    save_acc_to_excel(excel_file_name, head_train_loss_lists, client_train_loss_lists)
 
-    head_test_acc_rates = mmfl.head_test_acc_rates
+    head_test_loss_lists = mmfl.head_test_loss_list
+    client_test_loss_lists = {}
+    for client_id, client_trainer in mmfl.client_trainers.items():
+        client_test_loss_lists[client_id] = client_trainer.client_test_loss_list
+    excel_file_name = ('Test Loss ' + date_str
+                       + '_HeadRoundNum' + mmfl.head_round_num
+                       + '_HeadLearnRate' + mmfl.head_learn_rate)
+    save_acc_to_excel(excel_file_name, head_test_loss_lists, client_test_loss_lists)
+
+    head_test_acc_rates = mmfl.head_test_acc_rate_list
     client_test_acc_rates = {}
     for client_id, client_trainer in mmfl.client_trainers.items():
-        client_test_acc_rates[client_id] = client_trainer.client_test_acc_rates
-
-    current_time = datetime.datetime.now()
-    date_str = current_time.strftime('%Y-%m-%d')
+        client_test_acc_rates[client_id] = client_trainer.client_test_acc_rate_list
     excel_file_name = ('Test acc '+date_str
                        + '_HeadRoundNum' + mmfl.head_round_num
                        + '_HeadLearnRate' + mmfl.head_learn_rate)

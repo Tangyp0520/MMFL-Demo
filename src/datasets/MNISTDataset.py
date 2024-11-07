@@ -6,10 +6,12 @@ from torch.utils.data import DataLoader, Dataset
 
 
 class MNISTDataset(Dataset):
-    def __init__(self, root_dir, train=True, transform=None):
+    def __init__(self, root_dir, train=True, transform=None, load_type=True):
         self.root_dir = root_dir
         self.train = train
         self.transform = transform
+        self.load_type = load_type
+
         self.image_paths = []
         self.labels = []
         self.ids = []
@@ -39,7 +41,12 @@ class MNISTDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.train:
-            image = self.image_paths[idx]
+            if self.load_type:
+                image = self._load_image(idx)
+                if self.transform:
+                    image = self.transform(image)
+            else:
+                image = self.image_paths[idx]
         else:
             image = self._load_image(idx)
             if self.transform:

@@ -9,7 +9,7 @@ from src.datasets.MNISTDataset import *
 from src.datasets.MNISTMDataset import *
 
 
-def generate_dataloader(dataset_type, batch_size, data_path=None):
+def generate_dataloader(dataset_type, batch_size, data_path=None, load_type=True):
     if dataset_type == 'MNIST':
         # 定义数据预处理转换
         transform = transforms.Compose([
@@ -18,7 +18,7 @@ def generate_dataloader(dataset_type, batch_size, data_path=None):
         ])
         # 加载 MNIST 训练集
         # train_dataset = torchvision.datasets.MNIST(root='../data', train=True, download=True, transform=transform)
-        train_dataset = MNISTDataset(data_path+'/mnist', train=True, transform=transform)
+        train_dataset = MNISTDataset(data_path+'/mnist', train=True, transform=transform, load_type=load_type)
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         # 加载 MNIST 测试集
         # test_dataset = torchvision.datasets.MNIST(root='../data', train=False, download=True, transform=transform)
@@ -35,7 +35,7 @@ def generate_dataloader(dataset_type, batch_size, data_path=None):
         ])
         # 加载MNIST-M训练集
         # train_dataset = torchvision.datasets.MNISTM(root='../data', train=True, download=True, transform=transform)
-        train_dataset = MNISTMDataset(data_path+'/mnist_m', train=True, transform=transform)
+        train_dataset = MNISTMDataset(data_path+'/mnist_m', train=True, transform=transform, load_type=load_type)
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         # 加载MNIST-M测试集
         # test_dataset = torchvision.datasets.MNISTM(root='../data', train=False, download=True, transform=transform)

@@ -108,10 +108,11 @@ class ClassifierModel(nn.Module):
         x = self.relu(x)
         x = self.dropout(x)
         x = self.fc2(x)
+        # print(x)
         return x
 
     def l2_regularization_loss(self):
         reg_loss = 0
         for param in self.parameters():
-            reg_loss += torch.norm(param, 2)**2
+            reg_loss += torch.norm(param, 2)
         return reg_loss

@@ -5,8 +5,9 @@ import torchvision.models as models
 
 class ResNetForMNIST(nn.Module):
 
-    def __init__(self, color):
+    def __init__(self, color, feature_size):
         super(ResNetForMNIST, self).__init__()
+        self.feature_size = feature_size
         if color:
             in_channels = 3
         else:
@@ -17,7 +18,8 @@ class ResNetForMNIST(nn.Module):
         self.layer1 = self._make_layer(16, 16, 2)
         self.layer2 = self._make_layer(16, 32, 2, stride=2)
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(32, 64)
+        self.fc = nn.Linear(32, self.feature_size)
+        self.l2_reg = nn.MSELoss()
 
     def _make_layer(self, in_channels, out_channels, num_blocks, stride=1):
         layers = [nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1),
@@ -37,3 +39,9 @@ class ResNetForMNIST(nn.Module):
         x = self.avg_pool(x)
         x = x.view(x.size(0), -1)
         return self.fc(x)
+
+    def l2_regularization_loss(self):
+        reg_loss = 0
+        for param in self.parameters():
+            reg_loss += torch.norm(param, 2)
+        return reg_loss

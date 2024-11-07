@@ -12,7 +12,7 @@ from src.datasets.DataloaderGenerator import *
 
 
 class ClientTrainer:
-    def __init__(self, client_id, head, train_dataloader, test_dataloader, local_round_num=100, learning_rate=0.001, color=True):
+    def __init__(self, client_id, head, train_dataloader, test_dataloader, local_round_num=10, learning_rate=0.001, color=True):
         self.client_id = client_id
         self.train_dataloader = train_dataloader
         self.test_dataloader = test_dataloader
@@ -21,7 +21,7 @@ class ClientTrainer:
         self.color = color
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = ResNetForMNIST(self.color)
+        self.model = ResNetForMNIST(self.color, 64)
         self.head = ClassifierModel()
         self.load_head(head)
         self.model.to(self.device)
@@ -30,8 +30,10 @@ class ClientTrainer:
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
         self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
 
-        self.client_train_acc_rates = []
-        self.client_test_acc_rates = []
+        # self.client_train_acc_rates = []
+        self.client_train_loss_list = []
+        self.client_test_loss_list = []
+        self.client_test_acc_rate_list = []
 
     def print_info(self):
         print(f'    Client ID: {self.client_id}')
@@ -87,8 +89,7 @@ class ClientTrainer:
 
         self.head.eval()
         self.model.train()
-        train_total = 0
-        train_correct = 0
+        epoch_train_loss_list = []
         for epoch in range(self.local_round_num):
             for i, data in enumerate(mini_dataloader, 0):
                 inputs, labels, ids = data
@@ -109,21 +110,24 @@ class ClientTrainer:
                             head_inputs = torch.cat((head_inputs, torch.stack([client_embedding[id_value.item()] for id_value in ids], dim=0)), dim=1)
                 head_inputs = head_inputs.to(self.device)
                 head_outputs = self.head(head_inputs)
-                _, predicted = torch.max(head_outputs, 1)
-                train_total += labels.size(0)
-                train_correct += (predicted == labels).sum().item()
 
                 self.optimizer.zero_grad()
                 loss = self.criterion(head_outputs, labels)
-                loss.backward()
+                l2_loss = self.model.l2_regularization_loss()
+                total_loss = loss + 0.001*l2_loss
+                total_loss.backward()
+                epoch_train_loss_list.append(total_loss.item())
                 self.optimizer.step()
             self.scheduler.step()
-        self.client_train_acc_rates.append(100 * train_correct / train_total)
+        # print(f'    Client {self.client_id} train loss: {epoch_train_loss_list}')
+        print(f'    Client {self.client_id} train loss avg: {sum(epoch_train_loss_list) / len(epoch_train_loss_list)}')
+        self.client_test_loss_list.append(sum(epoch_train_loss_list) / len(epoch_train_loss_list))
 
         self.head.eval()
         self.model.eval()
         test_correct = 0
         test_total = 0
+        epoch_test_loss_list = []
         with torch.no_grad():
             for i, data in enumerate(self.test_dataloader, 0):
                 inputs, labels, ids = data
@@ -146,9 +150,18 @@ class ClientTrainer:
                 _, predicted = torch.max(head_outputs, 1)
                 test_total += labels.size(0)
                 test_correct += (predicted == labels).sum().item()
-        print(f'    Client {self.client_id} history accuracy on test set: {self.client_test_acc_rates}')
+
+                loss = self.criterion(head_outputs, labels)
+                l2_loss = self.model.l2_regularization_loss()
+                total_loss = loss + 0.001 * l2_loss
+                epoch_test_loss_list.append(total_loss.item())
+
+        # print(f'    Client {self.client_id} train loss: {epoch_test_loss_list}')
+        print(f'    Client {self.client_id} test loss avg: {sum(epoch_test_loss_list) / len(epoch_test_loss_list)}')
+        print(f'    Client {self.client_id} history accuracy on test set: {self.client_test_acc_rate_list}')
         print(f'    Client {self.client_id} accuracy on test set: {(100 * test_correct / test_total):.2f}%')
-        self.client_test_acc_rates.append(100 * test_correct / test_total)
+        self.client_test_acc_rate_list.append(100 * test_correct / test_total)
+        self.client_test_loss_list.append(sum(epoch_test_loss_list) / len(epoch_test_loss_list))
 
         del mini_dataloader
 

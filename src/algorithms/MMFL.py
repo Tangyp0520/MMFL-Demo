@@ -10,9 +10,9 @@ class MMFl(object):
     def __init__(self, dataset_root_path):
         self.dataset_root_path = dataset_root_path
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.head_round_num = 20
-        self.head_dataset_batch_size = 64
-        self.head_train_dataloader, self.head_test_dataloader = generate_dataloader('MNIST', self.head_dataset_batch_size, dataset_root_path)
+        self.head_round_num = 10
+        self.head_dataset_batch_size = 32
+        self.head_train_dataloader, self.head_test_dataloader = generate_dataloader('MNIST', self.head_dataset_batch_size, dataset_root_path, load_type=False)
         self.head_train_ids = []
         self.read_dataset_ids()
 
@@ -24,20 +24,21 @@ class MMFl(object):
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
 
         self.client_num = 2
-        self.client_dataset_batch_size = 256
+        self.client_dataset_batch_size = 32
         self.client_trainers = {}
         self.client_ids = []
         for i, (dataset_type, color) in enumerate([('MNIST', False), ('MNIST-M', True)]):
-            train_dataloader, test_dataloader = generate_dataloader(dataset_type, self.client_dataset_batch_size, dataset_root_path)
+            train_dataloader, test_dataloader = generate_dataloader(dataset_type, self.client_dataset_batch_size, dataset_root_path, load_type=False)
             self.client_trainers[i] = ClientTrainer(i, self.head, train_dataloader, test_dataloader, color=color)
             self.client_ids.append(i)
 
-        self.mini_dataset_size = 1024
+        self.mini_dataset_size = 256
         self.mini_dataset_ids = []
-        self.mini_dataset_batch_size = 256
+        self.mini_dataset_batch_size = 32
 
-        self.head_train_acc_rates = []
-        self.head_test_acc_rates = []
+        self.head_train_loss_list = []
+        self.head_test_loss_list = []
+        self.head_test_acc_rate_list = []
         self.print_info()
         for _, client_trainer in self.client_trainers.items():
             client_trainer.print_info()
@@ -53,7 +54,7 @@ class MMFl(object):
         print(f'MMFL device: {self.device}')
         print(f'Head Model: ClassifierModel')
         print(f'Head Round Num: {self.head_round_num}')
-        print(f'Head Dataset: ModelNet10')
+        print(f'Head Dataset: MNIST-M')
         print(f'Head Dataset Batch Size: {self.head_dataset_batch_size}')
         print(f'Head Learning rate: {self.head_learn_rate}')
         print(f'Client Num: {self.client_num}')
@@ -78,11 +79,10 @@ class MMFl(object):
             client_test_embeddings[client_id] = this_test_embedding
 
         print(f'    Head is training...')
-        self.head.train()
-        train_correct = 0
-        train_total = 0
         mini_dataloader = generate_mini_dataloader(self.head_train_dataloader, self.mini_dataset_batch_size, self.mini_dataset_ids, False)
-        loss_list = []
+
+        self.head.train()
+        epoch_train_loss_list = []
         for server_epoch in range(self.head_round_num):
             for i, data in enumerate(mini_dataloader):
                 _, labels, ids = data
@@ -95,24 +95,24 @@ class MMFl(object):
                         inputs = torch.cat((inputs, torch.stack([client_train_embedding[id_value.item()] for id_value in ids], dim=0)), dim=1)
                 inputs = inputs.to(self.device)
                 outputs = self.head(inputs)
-                _, predicted = torch.max(outputs.data, 1)
-                train_total += labels.size(0)
-                train_correct += (predicted == labels).sum().item()
 
                 self.optimizer.zero_grad()
                 loss = self.criterion(outputs, labels)
                 l2_loss = self.head.l2_regularization_loss()
                 total_loss = loss + 0.001*l2_loss
                 total_loss.backward()
-                loss_list.append(total_loss.item())
+                epoch_train_loss_list.append(total_loss.item())
                 self.optimizer.step()
             self.scheduler.step()
-        self.head_train_acc_rates.append(100 * train_correct / train_total)
+        # print(f'    Head train loss: {epoch_train_loss_list}')
+        print(f'    Head train loss avg: {sum(epoch_train_loss_list)/len(epoch_train_loss_list)}')
+        self.head_train_loss_list.append(sum(epoch_train_loss_list)/len(epoch_train_loss_list))
 
         print(f'    Head is testing...')
         self.head.eval()
         test_correct = 0
         test_total = 0
+        epoch_test_loss_list = []
         with torch.no_grad():
             for i, data in enumerate(self.head_test_dataloader):
                 _, labels, ids = data
@@ -129,12 +129,21 @@ class MMFl(object):
 
                 _, predicted = torch.max(outputs.data, 1)
                 # print(f'labels: {labels}')
-                # print(f'predicted: {predicted}')
+                print(f'predicted: {predicted}')
                 test_total += labels.size(0)
                 test_correct += (predicted == labels).sum().item()
-        print(f'    Head history accuracy on test set: {self.head_test_acc_rates}')
-        print(f'    Round {epoch+1:03d} head accuracy on test set: {(100 * test_correct / test_total):.2f}%')
-        self.head_test_acc_rates.append(100 * test_correct / test_total)
+
+                loss = self.criterion(outputs, labels)
+                l2_loss = self.head.l2_regularization_loss()
+                total_loss = loss + 0.001 * l2_loss
+                epoch_test_loss_list.append(total_loss.item())
+
+        # print(f'    Head test loss: {epoch_test_loss_list}')
+        print(f'    Head test loss avg: {sum(epoch_test_loss_list) / len(epoch_test_loss_list)}')
+        print(f'    Head history accuracy on test set: {self.head_test_acc_rate_list}')
+        print(f'    Head accuracy on test set: {(100 * test_correct / test_total):.2f}%')
+        self.head_test_acc_rate_list.append(100 * test_correct / test_total)
+        self.head_test_loss_list.append(sum(epoch_test_loss_list) / len(epoch_test_loss_list))
 
         print(f'    Client is training...')
         for client_id, client_trainer in self.client_trainers.items():
