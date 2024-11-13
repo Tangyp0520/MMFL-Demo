@@ -22,7 +22,9 @@ from src.utils.ExcelUtil import *
 print('Generate dataloader: MNIST-M')
 # dataset_root_path = 'D:\.download\MNIST-M\data\mnist_m'
 dataset_root_path = '/home/data2/duwenfeng/datasets/MNIST'
-train_dataloader, test_dataloader = generate_dataloader('Cifar-gray', 128, dataset_root_path, load_type=True)
+train_dataset, test_dataset = generate_dataset('Cifar-gray', dataset_root_path)
+train_dataloader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+test_dataloader = DataLoader(test_dataset, batch_size=128, shuffle=False)
 # train_ids = []
 # for batch in train_dataloader:
 #     _, _, batch_ids = batch
@@ -33,7 +35,7 @@ train_dataloader, test_dataloader = generate_dataloader('Cifar-gray', 128, datas
 # mini_dataloader = generate_mini_dataloader(train_dataloader, 128, mini_dataset_ids, True)
 
 print('Model init: ResNet')
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # model = ResNetForMNIST(True, 10)
 # model = CNNForMNIST(True, 10)
 model = CNNForCifar(False, 10)
@@ -64,21 +66,6 @@ for global_epoch in range(global_epoch_num):
     print('    Model is training...')
     model.train()
     epoch_train_loss_list = []
-    # for local_epoch in range(local_epoch_num):
-    #     for i, data in enumerate(train_dataloader, 0):
-    #         inputs, labels, _ = data
-    #         inputs, labels = inputs.to(device), labels.to(device)
-    #         outputs = model(inputs)
-    #
-    #         optimizer.zero_grad()
-    #         loss = criterion(outputs, labels)
-    #         ls_loss = model.l2_regularization_loss()
-    #         total_loss = loss + 0.001 * ls_loss
-    #         total_loss.backward()
-    #         optimizer.step()
-    #
-    #         epoch_train_loss_list.append(total_loss.item())
-    #     # scheduler.step()
     for i, data in enumerate(train_dataloader, 0):
         inputs, labels, _ = data
         inputs, labels = inputs.to(device), labels.to(device)
@@ -105,9 +92,7 @@ for global_epoch in range(global_epoch_num):
             inputs, labels, _ = data
             inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
-
             _, predicted = torch.max(outputs.data, 1)
-            print(predicted)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 

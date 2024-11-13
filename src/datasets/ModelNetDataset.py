@@ -47,18 +47,12 @@ class ModelNetDataset(Dataset):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
-        if self.train:
-            image = self.image_paths[idx]
-            label = self.labels[idx]
-            id_value = self.ids[idx]
-            return image, label, id_value
-        else:
-            image = self._load_image(idx)
-            label = self.labels[idx]
-            id_value = self.ids[idx]
-            if self.transform:
-                image = self.transform(image)
-            return image, label, id_value
+        image = self._load_image(idx)
+        label = self.labels[idx]
+        id_value = self.ids[idx]
+        if self.transform:
+            image = self.transform(image)
+        return image, label, id_value
 
     def _load_image(self, idx):
         return Image.open(self.image_paths[idx]).convert('RGB')

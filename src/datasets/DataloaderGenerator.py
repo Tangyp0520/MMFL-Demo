@@ -21,7 +21,7 @@ def convert_to_grayscale(image):
     return torchvision.transforms.Grayscale(1)(image)
 
 
-def generate_dataloader(dataset_type, batch_size, data_path=None, load_type=True):
+def generate_dataset(dataset_type, data_path=None):
     if dataset_type == 'MNIST':
         # 定义数据预处理转换
         transform = transforms.Compose([
@@ -30,14 +30,14 @@ def generate_dataloader(dataset_type, batch_size, data_path=None, load_type=True
         ])
         # 加载 MNIST 训练集
         # train_dataset = torchvision.datasets.MNIST(root='../data', train=True, download=True, transform=transform)
-        train_dataset = MNISTDataset(data_path+'/mnist', train=True, transform=transform, load_type=load_type)
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        train_dataset = MNISTDataset(data_path+'/mnist', train=True, transform=transform)
+        # train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         # 加载 MNIST 测试集
         # test_dataset = torchvision.datasets.MNIST(root='../data', train=False, download=True, transform=transform)
         test_dataset = MNISTDataset(data_path+'/mnist', train=False, transform=transform)
-        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        # test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-        return train_dataloader, test_dataloader
+        return train_dataset, test_dataset
 
     elif dataset_type == 'MNIST-M':
         # 定义数据预处理转换
@@ -47,14 +47,14 @@ def generate_dataloader(dataset_type, batch_size, data_path=None, load_type=True
         ])
         # 加载MNIST-M训练集
         # train_dataset = torchvision.datasets.MNISTM(root='../data', train=True, download=True, transform=transform)
-        train_dataset = MNISTMDataset(data_path+'/mnist_m', train=True, transform=transform, load_type=load_type)
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        train_dataset = MNISTMDataset(data_path+'/mnist_m', train=True, transform=transform)
+        # train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         # 加载MNIST-M测试集
         # test_dataset = torchvision.datasets.MNISTM(root='../data', train=False, download=True, transform=transform)
         test_dataset = MNISTMDataset(data_path+'/mnist_m', train=False, transform=transform)
-        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        # test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-        return train_dataloader, test_dataloader
+        return train_dataset, test_dataset
 
     elif dataset_type == 'ModelNet10':
         # 定义数据预处理转换
@@ -65,21 +65,23 @@ def generate_dataloader(dataset_type, batch_size, data_path=None, load_type=True
         ])
         # 加载ModelNet训练集
         train_dataset = ModelNetDataset(root_dir=data_path, train=True, transform=transform)
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        # train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         # 加载ModelNet测试集
         test_dataset = ModelNetDataset(root_dir=data_path, train=False, transform=transform)
-        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-        return train_dataloader, test_dataloader
+        # test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        return train_dataset, test_dataset
+
     elif dataset_type == 'Cifar':
         transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Lambda(lambda x: min_max_normalize(x))
         ])
         train_dataset = CifarDataset(root='../data', train=True, transform=transform)
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        # train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         test_dataset = CifarDataset(root='../data', train=False, transform=transform)
-        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-        return train_dataloader, test_dataloader
+        # test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        return train_dataset, test_dataset
+
     elif dataset_type == 'Cifar-gray':
         transform = transforms.Compose([
             transforms.ToTensor(),
@@ -87,34 +89,21 @@ def generate_dataloader(dataset_type, batch_size, data_path=None, load_type=True
             transforms.Lambda(lambda x: min_max_normalize(x))
         ])
         train_dataset = CifarDataset(root='../data', train=True, transform=transform)
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        # train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         test_dataset = CifarDataset(root='../data', train=False, transform=transform)
-        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-        return train_dataloader, test_dataloader
+        # test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        return train_dataset, test_dataset
 
 
-def generate_mini_dataloader(dataloader, mini_dataset_batch_size, mini_dataset_ids, color=True):
+def generate_mini_dataloader(dataset, mini_dataset_batch_size, mini_dataset_ids):
     """
     根据全体数据集dataloader及选择的id列表生成新的dataloader
-    :param dataloader:
+    :param dataset:
     :param mini_dataset_batch_size:
     :param mini_dataset_ids:
     :return:
     """
-    # 定义数据预处理转换
-    transform_color = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Lambda(lambda x: min_max_normalize(x))
-    ])
-    transform_bk = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Lambda(lambda x: min_max_normalize(x))
-    ])
-    if color:
-        transform = transform_color
-    else:
-        transform = transform_bk
-    mini_dataset = MiniDataset(dataloader, mini_dataset_ids, transform)
+    mini_dataset = MiniDataset(dataset, mini_dataset_ids)
     mini_dataloader = DataLoader(mini_dataset, batch_size=mini_dataset_batch_size, shuffle=True)
     return mini_dataloader
 

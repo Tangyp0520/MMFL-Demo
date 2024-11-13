@@ -11,30 +11,32 @@ class MMFl(object):
         self.dataset_root_path = dataset_root_path
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.head_round_num = 10
-        self.head_dataset_batch_size = 32
-        self.head_train_dataloader, self.head_test_dataloader = generate_dataloader('MNIST', self.head_dataset_batch_size, dataset_root_path, load_type=False)
+        self.head_dataset_batch_size = 128
+        self.head_train_dataset, self.head_test_dataset = generate_dataset('Cifar', dataset_root_path)
+        self.head_test_dataloader = DataLoader(dataset=self.head_test_dataset, batch_size=self.head_dataset_batch_size, shuffle=True)
         self.head_train_ids = []
         self.read_dataset_ids()
 
         self.head = ClassifierModel()
         self.head.to(self.device)
         self.head_learn_rate = 0.001
+        self.weight_decay = 0.001
         self.criterion = nn.CrossEntropyLoss().to(self.device)
-        self.optimizer = torch.optim.SGD(self.head.parameters(), lr=self.head_learn_rate, momentum=0.9, weight_decay=5e-4)
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
+        self.optimizer = torch.optim.Adam(self.head.parameters(), lr=self.head_learn_rate, weight_decay=self.weight_decay)
+        # self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
 
         self.client_num = 2
-        self.client_dataset_batch_size = 32
+        self.client_dataset_batch_size = 128
         self.client_trainers = {}
         self.client_ids = []
-        for i, (dataset_type, color) in enumerate([('MNIST', False), ('MNIST-M', True)]):
-            train_dataloader, test_dataloader = generate_dataloader(dataset_type, self.client_dataset_batch_size, dataset_root_path, load_type=False)
-            self.client_trainers[i] = ClientTrainer(i, self.head, train_dataloader, test_dataloader, color=color)
+        for i, (dataset_type, color) in enumerate([('Cifar-gray', False), ('Cifar', True)]):
+            train_dataset, test_dataset = generate_dataset(dataset_type, dataset_root_path)
+            self.client_trainers[i] = ClientTrainer(i, self.head, train_dataset, train_dataset, self.client_dataset_batch_size, color=color)
             self.client_ids.append(i)
 
-        self.mini_dataset_size = 256
+        self.mini_dataset_size = len(self.head_train_ids) // self.client_num
         self.mini_dataset_ids = []
-        self.mini_dataset_batch_size = 32
+        self.mini_dataset_batch_size = 128
 
         self.head_train_loss_list = []
         self.head_test_loss_list = []
@@ -45,16 +47,15 @@ class MMFl(object):
             # client_trainer.test()
 
     def read_dataset_ids(self):
-        for batch in self.head_train_dataloader:
-            _, _, batch_ids = batch
-            for id_value in batch_ids:
-                self.head_train_ids.append(id_value.item())
+        for data in self.head_train_dataset:
+            _, _, id_value = data
+            self.head_train_ids.append(id_value)
 
     def print_info(self):
         print(f'MMFL device: {self.device}')
         print(f'Head Model: ClassifierModel')
         print(f'Head Round Num: {self.head_round_num}')
-        print(f'Head Dataset: MNIST-M')
+        print(f'Head Dataset: CIFAR')
         print(f'Head Dataset Batch Size: {self.head_dataset_batch_size}')
         print(f'Head Learning rate: {self.head_learn_rate}')
         print(f'Client Num: {self.client_num}')
@@ -78,8 +79,10 @@ class MMFl(object):
             client_train_embeddings[client_id] = this_train_embedding
             client_test_embeddings[client_id] = this_test_embedding
 
+        # print(client_train_embeddings)
+
         print(f'    Head is training...')
-        mini_dataloader = generate_mini_dataloader(self.head_train_dataloader, self.mini_dataset_batch_size, self.mini_dataset_ids, False)
+        mini_dataloader = generate_mini_dataloader(self.head_train_dataset, self.mini_dataset_batch_size, self.mini_dataset_ids)
 
         self.head.train()
         epoch_train_loss_list = []
@@ -94,16 +97,17 @@ class MMFl(object):
                     else:
                         inputs = torch.cat((inputs, torch.stack([client_train_embedding[id_value.item()] for id_value in ids], dim=0)), dim=1)
                 inputs = inputs.to(self.device)
+                print(inputs)
                 outputs = self.head(inputs)
 
                 self.optimizer.zero_grad()
                 loss = self.criterion(outputs, labels)
                 l2_loss = self.head.l2_regularization_loss()
-                total_loss = loss + 0.001*l2_loss
-                total_loss.backward()
-                epoch_train_loss_list.append(total_loss.item())
+                loss += self.weight_decay*l2_loss
+                loss.backward()
+                epoch_train_loss_list.append(loss.item())
                 self.optimizer.step()
-            self.scheduler.step()
+            # self.scheduler.step()
         # print(f'    Head train loss: {epoch_train_loss_list}')
         print(f'    Head train loss avg: {sum(epoch_train_loss_list)/len(epoch_train_loss_list)}')
         self.head_train_loss_list.append(sum(epoch_train_loss_list)/len(epoch_train_loss_list))
@@ -129,7 +133,7 @@ class MMFl(object):
 
                 _, predicted = torch.max(outputs.data, 1)
                 # print(f'labels: {labels}')
-                print(f'predicted: {predicted}')
+                # print(f'predicted: {predicted}')
                 test_total += labels.size(0)
                 test_correct += (predicted == labels).sum().item()
 
