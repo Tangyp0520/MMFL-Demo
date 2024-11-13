@@ -13,6 +13,7 @@ import torch.optim as optim
 import datetime
 
 from src.models.ResNetForMNIST import *
+from src.models.CNNForMNIST import *
 from src.datasets.DataloaderGenerator import *
 from src.utils.ExcelUtil import *
 
@@ -32,15 +33,17 @@ train_dataloader, test_dataloader = generate_dataloader('MNIST-M', 128, dataset_
 
 print('Model init: ResNet')
 device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
-model = ResNetForMNIST(True, 10)
+# model = ResNetForMNIST(True, 10)
+model = CNNForMNIST(True, 10)
 model.to(device)
 learn_rate = 0.001
+weight_decay = 0.001
 criterion = nn.CrossEntropyLoss().to(device)
-optimizer = torch.optim.SGD(model.parameters(), lr=learn_rate, momentum=0.9, weight_decay=5e-4)
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
+optimizer = torch.optim.Adam(model.parameters(), lr=learn_rate, weight_decay=weight_decay)
+# scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
 local_epoch_num = 10
-global_epoch_num = 50
+global_epoch_num = 100
 print(f'Device: {device}')
 print(f'Learning rate: {learn_rate}')
 print(f'Global epoch num: {global_epoch_num}')
@@ -59,21 +62,34 @@ for global_epoch in range(global_epoch_num):
     print('    Model is training...')
     model.train()
     epoch_train_loss_list = []
-    for local_epoch in range(local_epoch_num):
-        for i, data in enumerate(train_dataloader, 0):
-            inputs, labels, _ = data
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
+    # for local_epoch in range(local_epoch_num):
+    #     for i, data in enumerate(train_dataloader, 0):
+    #         inputs, labels, _ = data
+    #         inputs, labels = inputs.to(device), labels.to(device)
+    #         outputs = model(inputs)
+    #
+    #         optimizer.zero_grad()
+    #         loss = criterion(outputs, labels)
+    #         ls_loss = model.l2_regularization_loss()
+    #         total_loss = loss + 0.001 * ls_loss
+    #         total_loss.backward()
+    #         optimizer.step()
+    #
+    #         epoch_train_loss_list.append(total_loss.item())
+    #     # scheduler.step()
+    for i, data in enumerate(train_dataloader, 0):
+        inputs, labels, _ = data
+        inputs, labels = inputs.to(device), labels.to(device)
+        outputs = model(inputs)
 
-            optimizer.zero_grad()
-            loss = criterion(outputs, labels)
-            ls_loss = model.l2_regularization_loss()
-            total_loss = loss + 0.001 * ls_loss
-            total_loss.backward()
-            optimizer.step()
+        optimizer.zero_grad()
+        loss = criterion(outputs, labels)
+        ls_loss = model.l2_regularization_loss()
+        loss += weight_decay * ls_loss
+        loss.backward()
+        optimizer.step()
 
-            epoch_train_loss_list.append(total_loss.item())
-        scheduler.step()
+        epoch_train_loss_list.append(loss.item())
     train_loss_list.append(sum(epoch_train_loss_list) / len(epoch_train_loss_list))
     print('    Train loss: ', sum(epoch_train_loss_list) / len(epoch_train_loss_list))
 
@@ -89,6 +105,7 @@ for global_epoch in range(global_epoch_num):
             outputs = model(inputs)
 
             _, predicted = torch.max(outputs.data, 1)
+            print(predicted)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
@@ -97,7 +114,7 @@ for global_epoch in range(global_epoch_num):
             total_loss = loss + 0.001 * l2_loss
             epoch_test_loss_list.append(total_loss.item())
     print(f'    Test loss avg: {sum(epoch_test_loss_list) / len(epoch_test_loss_list)}')
-    print(f'    Test history accuracy: {test_loss_list}')
+    print(f'    Test history accuracy: {test_acc_rate_list}')
     print(f'    Test accuracy: {100 * correct / total:.2f}%')
     test_loss_list.append(sum(epoch_test_loss_list) / len(epoch_test_loss_list))
     test_acc_rate_list.append(100 * correct / total)

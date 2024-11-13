@@ -9,12 +9,18 @@ from src.datasets.MNISTDataset import *
 from src.datasets.MNISTMDataset import *
 
 
+def min_max_normalize(image):
+    min_val = image.min()
+    max_val = image.max()
+    return (image - min_val)/(max_val - min_val)
+
+
 def generate_dataloader(dataset_type, batch_size, data_path=None, load_type=True):
     if dataset_type == 'MNIST':
         # 定义数据预处理转换
         transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
+            transforms.Lambda(lambda x: min_max_normalize(x))
         ])
         # 加载 MNIST 训练集
         # train_dataset = torchvision.datasets.MNIST(root='../data', train=True, download=True, transform=transform)
@@ -31,7 +37,7 @@ def generate_dataloader(dataset_type, batch_size, data_path=None, load_type=True
         # 定义数据预处理转换
         transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+            transforms.Lambda(lambda x: min_max_normalize(x))
         ])
         # 加载MNIST-M训练集
         # train_dataset = torchvision.datasets.MNISTM(root='../data', train=True, download=True, transform=transform)
@@ -71,11 +77,11 @@ def generate_mini_dataloader(dataloader, mini_dataset_batch_size, mini_dataset_i
     # 定义数据预处理转换
     transform_color = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        transforms.Lambda(lambda x: min_max_normalize(x))
     ])
     transform_bk = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))
+        transforms.Lambda(lambda x: min_max_normalize(x))
     ])
     if color:
         transform = transform_color
