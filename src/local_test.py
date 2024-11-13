@@ -14,6 +14,7 @@ import datetime
 
 from src.models.ResNetForMNIST import *
 from src.models.CNNForMNIST import *
+from src.models.CNNForCifar import *
 from src.datasets.DataloaderGenerator import *
 from src.utils.ExcelUtil import *
 
@@ -21,7 +22,7 @@ from src.utils.ExcelUtil import *
 print('Generate dataloader: MNIST-M')
 # dataset_root_path = 'D:\.download\MNIST-M\data\mnist_m'
 dataset_root_path = '/home/data2/duwenfeng/datasets/MNIST'
-train_dataloader, test_dataloader = generate_dataloader('MNIST-M', 128, dataset_root_path, load_type=True)
+train_dataloader, test_dataloader = generate_dataloader('Cifar-gray', 128, dataset_root_path, load_type=True)
 # train_ids = []
 # for batch in train_dataloader:
 #     _, _, batch_ids = batch
@@ -34,7 +35,8 @@ train_dataloader, test_dataloader = generate_dataloader('MNIST-M', 128, dataset_
 print('Model init: ResNet')
 device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 # model = ResNetForMNIST(True, 10)
-model = CNNForMNIST(True, 10)
+# model = CNNForMNIST(True, 10)
+model = CNNForCifar(False, 10)
 model.to(device)
 learn_rate = 0.001
 weight_decay = 0.001

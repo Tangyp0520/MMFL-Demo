@@ -7,12 +7,18 @@ from src.datasets.ModelNetDataset import *
 from src.datasets.MiniDataset import *
 from src.datasets.MNISTDataset import *
 from src.datasets.MNISTMDataset import *
+from src.datasets.CifarDataset import *
 
 
 def min_max_normalize(image):
     min_val = image.min()
     max_val = image.max()
     return (image - min_val)/(max_val - min_val)
+
+
+def convert_to_grayscale(image):
+    # return torchvision.transforms.functional.to_grayscale(image, num_output_channels=1)
+    return torchvision.transforms.Grayscale(1)(image)
 
 
 def generate_dataloader(dataset_type, batch_size, data_path=None, load_type=True):
@@ -62,6 +68,27 @@ def generate_dataloader(dataset_type, batch_size, data_path=None, load_type=True
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         # 加载ModelNet测试集
         test_dataset = ModelNetDataset(root_dir=data_path, train=False, transform=transform)
+        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        return train_dataloader, test_dataloader
+    elif dataset_type == 'Cifar':
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: min_max_normalize(x))
+        ])
+        train_dataset = CifarDataset(root='../data', train=True, transform=transform)
+        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        test_dataset = CifarDataset(root='../data', train=False, transform=transform)
+        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        return train_dataloader, test_dataloader
+    elif dataset_type == 'Cifar-gray':
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: convert_to_grayscale(x)),
+            transforms.Lambda(lambda x: min_max_normalize(x))
+        ])
+        train_dataset = CifarDataset(root='../data', train=True, transform=transform)
+        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        test_dataset = CifarDataset(root='../data', train=False, transform=transform)
         test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
         return train_dataloader, test_dataloader
 
