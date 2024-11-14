@@ -95,15 +95,18 @@ class MMFl(object):
                     if inputs is None:
                         inputs = torch.stack([client_train_embedding[id_value.item()] for id_value in ids], dim=0)
                     else:
-                        inputs = torch.cat((inputs, torch.stack([client_train_embedding[id_value.item()] for id_value in ids], dim=0)), dim=1)
+                        # inputs = torch.cat((inputs, torch.stack([client_train_embedding[id_value.item()] for id_value in ids], dim=0)), dim=1)
+                        inputs += torch.stack([client_train_embedding[id_value.item()] for id_value in ids], dim=0)
+                inputs /= self.client_num
                 inputs = inputs.to(self.device)
-                print(inputs)
+                # print(inputs)
+                # print(inputs.shape)
                 outputs = self.head(inputs)
 
                 self.optimizer.zero_grad()
                 loss = self.criterion(outputs, labels)
                 l2_loss = self.head.l2_regularization_loss()
-                loss += self.weight_decay*l2_loss
+                loss += self.weight_decay * l2_loss
                 loss.backward()
                 epoch_train_loss_list.append(loss.item())
                 self.optimizer.step()
@@ -127,7 +130,9 @@ class MMFl(object):
                     if inputs is None:
                         inputs = torch.stack([client_test_embedding[id_value.item()] for id_value in ids], dim=0)
                     else:
-                        inputs = torch.cat((inputs, torch.stack([client_test_embedding[id_value.item()] for id_value in ids], dim=0)), dim=1)
+                        # inputs = torch.cat((inputs, torch.stack([client_test_embedding[id_value.item()] for id_value in ids], dim=0)), dim=1)
+                        inputs += torch.stack([client_test_embedding[id_value.item()] for id_value in ids], dim=0)
+                inputs /= self.client_num
                 inputs = inputs.to(self.device)
                 outputs = self.head(inputs)
 

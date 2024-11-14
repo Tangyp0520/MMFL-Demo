@@ -101,20 +101,20 @@ class ClientTrainer:
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
 
                 outputs = self.model(inputs)
-                head_inputs = None
-                for client_id, client_embedding in client_train_embeddings.items():
-                    if client_id == self.client_id:
-                        if head_inputs is None:
-                            head_inputs = outputs
-                        else:
-                            head_inputs = torch.cat((head_inputs, outputs), dim=1)
-                    else:
-                        if head_inputs is None:
-                            head_inputs = torch.stack([client_embedding[id_value.item()] for id_value in ids], dim=0)
-                        else:
-                            head_inputs = torch.cat((head_inputs, torch.stack([client_embedding[id_value.item()] for id_value in ids], dim=0)), dim=1)
-                head_inputs = head_inputs.to(self.device)
-                head_outputs = self.head(head_inputs)
+                # head_inputs = None
+                # for client_id, client_embedding in client_train_embeddings.items():
+                #     if client_id == self.client_id:
+                #         if head_inputs is None:
+                #             head_inputs = outputs
+                #         else:
+                #             head_inputs = torch.cat((head_inputs, outputs), dim=1)
+                #     else:
+                #         if head_inputs is None:
+                #             head_inputs = torch.stack([client_embedding[id_value.item()] for id_value in ids], dim=0)
+                #         else:
+                #             head_inputs = torch.cat((head_inputs, torch.stack([client_embedding[id_value.item()] for id_value in ids], dim=0)), dim=1)
+                # head_inputs = head_inputs.to(self.device)
+                head_outputs = self.head(outputs)
 
                 self.optimizer.zero_grad()
                 loss = self.criterion(head_outputs, labels)
@@ -138,20 +138,20 @@ class ClientTrainer:
                 inputs, labels, ids = data
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = self.model(inputs)
-                head_inputs = None
-                for client_id, client_embedding in client_test_embeddings.items():
-                    if client_id == self.client_id:
-                        if head_inputs is None:
-                            head_inputs = outputs
-                        else:
-                            head_inputs = torch.cat((head_inputs, outputs), dim=1)
-                    else:
-                        if head_inputs is None:
-                            head_inputs = torch.stack([client_embedding[id_value.item()] for id_value in ids], dim=0)
-                        else:
-                            head_inputs = torch.cat((head_inputs, torch.stack([client_embedding[id_value.item()] for id_value in ids], dim=0)), dim=1)
-                head_inputs = head_inputs.to(self.device)
-                head_outputs = self.head(head_inputs)
+                # head_inputs = None
+                # for client_id, client_embedding in client_test_embeddings.items():
+                #     if client_id == self.client_id:
+                #         if head_inputs is None:
+                #             head_inputs = outputs
+                #         else:
+                #             head_inputs = torch.cat((head_inputs, outputs), dim=1)
+                #     else:
+                #         if head_inputs is None:
+                #             head_inputs = torch.stack([client_embedding[id_value.item()] for id_value in ids], dim=0)
+                #         else:
+                #             head_inputs = torch.cat((head_inputs, torch.stack([client_embedding[id_value.item()] for id_value in ids], dim=0)), dim=1)
+                # head_inputs = head_inputs.to(self.device)
+                head_outputs = self.head(outputs)
                 _, predicted = torch.max(head_outputs, 1)
                 test_total += labels.size(0)
                 test_correct += (predicted == labels).sum().item()
