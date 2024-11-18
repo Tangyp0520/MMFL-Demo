@@ -14,9 +14,11 @@ class MMFl(object):
         # self.head_round_num = 10
         self.dataset_size = 128
         self.train_dataset, self.test_dataset = generate_dataset('Multiple', dataset_root_path)
+        self.train_idx = []
+        self.split_train_dataset_index()
         self.test_dataloader = DataLoader(dataset=self.test_dataset, batch_size=self.dataset_size, shuffle=True)
 
-        self.global_model = MultiModelForCifar()
+        self.global_model = MultiModelForCifar(self.device)
         self.global_model.to(self.device)
         # self.head_learn_rate = 0.001
         # self.weight_decay = 0.001
@@ -32,17 +34,23 @@ class MMFl(object):
             self.client_trainers[i] = ClientTrainer(i, self.train_dataset, self.test_dataset, self.client_batch_size, color=color)
             self.client_ids.append(i)
 
-        # self.mini_dataset_size = len(self.head_train_ids) // self.client_num
-        # self.mini_dataset_ids = []
-        # self.mini_dataset_batch_size = 128
-
-        # self.head_train_loss_list = []
         self.test_loss_list = []
         self.test_acc_rate_list = []
         self.print_info()
         for _, client_trainer in self.client_trainers.items():
             client_trainer.print_info()
             # client_trainer.test()
+
+    def split_train_dataset_index(self):
+        all_idx = range(len(self.train_dataset))
+        part_size = len(all_idx) // 5
+        remainder = len(all_idx) % 5
+        start = 0
+
+        for i in range(5):
+            end = start + part_size + (1 if i < remainder else 0)
+            self.train_idx.append(all_idx[start:end])
+            start = end
 
     def print_info(self):
         print(f'MMFL device: {self.device}')
@@ -90,13 +98,14 @@ class MMFl(object):
 
     def train(self, epoch):
         print(f'Global train epoch: {epoch}')
+        mini_train_idx = self.train_idx[epoch % len(self.train_idx)]
 
         weight_accumulator = {}
         for name, param in self.global_model.state_dict().items():
             weight_accumulator[name] = torch.zeros_like(param)
 
         for client_id, client in self.client_trainers.items():
-            diff = client.train(self.global_model)
+            diff = client.train(self.global_model, mini_train_idx)
             for name, param in self.global_model.state_dict().items():
                 weight_accumulator[name].add_(diff[name])
 

@@ -14,13 +14,13 @@ from src.datasets.DataloaderGenerator import *
 
 
 class ClientTrainer:
-    def __init__(self, client_id, train_dataset, test_dataset, client_batch_size, local_round_num=5, learning_rate=0.001, color=True):
+    def __init__(self, client_id, train_dataset, test_dataset, client_batch_size, local_round_num=1, learning_rate=0.001, color=True):
         self.client_id = client_id
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
         self.client_batch_size = client_batch_size
 
-        self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.client_batch_size, shuffle=True)
+        # self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.client_batch_size, shuffle=True)
         self.test_dataloader = DataLoader(self.test_dataset, batch_size=self.client_batch_size, shuffle=False)
 
         self.local_round_num = local_round_num
@@ -29,11 +29,26 @@ class ClientTrainer:
         self.color = color
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = MultiModelForCifar()
+        self.model = MultiModelForCifar(self.device)
         self.model.to(self.device)
 
+        classifier_params = self.model.classifier.parameters()
+        color_params = self.model.color_model.parameters()
+        gray_params = self.model.gray_model.parameters()
+
         self.criterion = nn.CrossEntropyLoss().to(self.device)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        if self.color:
+            self.optimizer = optim.Adam([
+                {'params': classifier_params, 'weight_decay': self.weight_decay},
+                {'params': color_params, 'weight_decay': self.weight_decay},
+                {'params': gray_params, 'weight_decay': self.weight_decay, 'lr': 0}
+            ], lr=self.learning_rate, weight_decay=self.weight_decay)
+        else:
+            self.optimizer = optim.Adam([
+                {'params': classifier_params, 'weight_decay': self.weight_decay},
+                {'params': color_params, 'weight_decay': self.weight_decay, 'lr': 0},
+                {'params': gray_params, 'weight_decay': self.weight_decay}
+            ], lr=self.learning_rate, weight_decay=self.weight_decay)
         # self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
 
         # self.client_train_acc_rates = []
@@ -50,7 +65,9 @@ class ClientTrainer:
         print(f'    Client Data Batch Size: {self.client_batch_size}')
         print(f'    Client Learning Rate: {self.learning_rate}')
 
-    def train(self, global_model):
+    def train(self, global_model, mini_train_idx):
+        # 小批量数据集生成
+        train_dataloader = generate_mini_dataloader(self.train_dataset, self.client_batch_size, mini_train_idx)
         # 模型聚合
         print(f'    Client {self.client_id} model fusion...')
         for name, param in global_model.state_dict().items():
@@ -60,15 +77,17 @@ class ClientTrainer:
         self.model.train()
         epoch_train_loss_list = []
         for epoch in range(self.local_round_num):
-            for batch in self.train_dataloader:
-                color = None
-                gray = None
-                if self.color:
-                    color, _, labels, _ = batch
-                    color, labels = color.to(self.device), labels.to(self.device)
-                else:
-                    _, gray, labels, _ = batch
-                    gray, labels = gray.to(self.device), labels.to(self.device)
+            for batch in train_dataloader:
+                color, gray, labels, _ = batch
+                color, gray, labels = color.to(self.device), gray.to(self.device), labels.to(self.device)
+                # color = None
+                # gray = None
+                # if self.color:
+                #     color, _, labels, _ = batch
+                #     color, labels = color.to(self.device), labels.to(self.device)
+                # else:
+                #     _, gray, labels, _ = batch
+                #     gray, labels = gray.to(self.device), labels.to(self.device)
 
                 self.optimizer.zero_grad()
                 output = self.model(color, gray)
@@ -86,14 +105,16 @@ class ClientTrainer:
         epoch_test_loss_list = []
         with torch.no_grad():
             for batch in self.test_dataloader:
-                color = None
-                gray = None
-                if self.color:
-                    color, _, labels, _ = batch
-                    color, labels = color.to(self.device), labels.to(self.device)
-                else:
-                    _, gray, labels, _ = batch
-                    gray, labels = gray.to(self.device), labels.to(self.device)
+                color, gray, labels, _ = batch
+                color, gray, labels = color.to(self.device), gray.to(self.device), labels.to(self.device)
+                # color = None
+                # gray = None
+                # if self.color:
+                #     color, _, labels, _ = batch
+                #     color, labels = color.to(self.device), labels.to(self.device)
+                # else:
+                #     _, gray, labels, _ = batch
+                #     gray, labels = gray.to(self.device), labels.to(self.device)
                 output = self.model(color, gray)
                 loss = self.criterion(output, labels)
                 epoch_test_loss_list.append(loss.item())

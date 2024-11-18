@@ -173,7 +173,7 @@ import torch.nn as nn
 class ClassifierModel(nn.Module):
     def __init__(self):
         super(ClassifierModel, self).__init__()
-        self.fc1 = nn.Linear(64, 128)
+        self.fc1 = nn.Linear(64*2, 128)
         self.relu1 = nn.ReLU()
         self.dropout1 = nn.Dropout(0.2)
         self.fc2 = nn.Linear(128, 64)

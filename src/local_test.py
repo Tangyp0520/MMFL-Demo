@@ -22,16 +22,24 @@ from src.utils.ExcelUtil import *
 
 def color_test(train_dataloader, test_dataloader):
     print(f'Color Client')
-    local_round_num = 50
+    local_round_num = 30
     learning_rate = 0.001
     weight_decay = 0.001
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = MultiModelForCifar()
+    model = MultiModelForCifar(device)
     model.to(device)
 
+    classifier_params = model.classifier.parameters()
+    color_params = model.color_model.parameters()
+    gray_params = model.gray_model.parameters()
+
     criterion = nn.CrossEntropyLoss().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    optimizer = optim.Adam([
+        {'params': classifier_params, 'weight_decay': weight_decay},
+        {'params': color_params, 'weight_decay': weight_decay},
+        {'params': gray_params, 'weight_decay': weight_decay, 'lr': 0}
+    ], lr=learning_rate, weight_decay=weight_decay)
     client_train_loss_list = []
     client_test_loss_list = []
     client_test_acc_rate_list = []
@@ -42,11 +50,11 @@ def color_test(train_dataloader, test_dataloader):
         model.train()
         epoch_train_loss_list = []
         for batch in train_dataloader:
-            color, _, labels, _ = batch
-            color, labels = color.to(device), labels.to(device)
+            color, gray, labels, _ = batch
+            color, gray, labels = color.to(device), gray.to(device), labels.to(device)
 
             optimizer.zero_grad()
-            output = model(color, None)
+            output = model(color, gray)
             loss = criterion(output, labels)
             loss.backward()
             epoch_train_loss_list.append(loss.item())
@@ -60,9 +68,9 @@ def color_test(train_dataloader, test_dataloader):
         epoch_test_loss_list = []
         with torch.no_grad():
             for batch in test_dataloader:
-                color, _, labels, _ = batch
-                color, labels = color.to(device), labels.to(device)
-                output = model(color, None)
+                color, gray, labels, _ = batch
+                color, gray, labels = color.to(device), gray.to(device), labels.to(device)
+                output = model(color, gray)
                 loss = criterion(output, labels)
                 epoch_test_loss_list.append(loss.item())
 
@@ -79,9 +87,9 @@ def color_test(train_dataloader, test_dataloader):
     print(f'    Color client result is saving...')
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
-    train_loss_excel_name = 'color_train_loss_' + date_str
-    test_loss_excel_name = 'color_test_loss_' + date_str
-    test_acc_excel_name = 'color_test_acc_' + date_str
+    train_loss_excel_name = 'local_stitch_color_train_loss_' + date_str
+    test_loss_excel_name = 'local_stitch_color_test_loss_' + date_str
+    test_acc_excel_name = 'local_stitch_color_test_acc_' + date_str
 
     save_acc_to_excel(train_loss_excel_name, client_train_loss_list, {})
     save_acc_to_excel(test_loss_excel_name, client_test_loss_list, {})
@@ -90,16 +98,24 @@ def color_test(train_dataloader, test_dataloader):
 
 def gray_test(train_dataloader, test_dataloader):
     print(f'Gray Client')
-    local_round_num = 50
+    local_round_num = 30
     learning_rate = 0.001
     weight_decay = 0.001
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = MultiModelForCifar()
+    model = MultiModelForCifar(device)
     model.to(device)
 
+    classifier_params = model.classifier.parameters()
+    color_params = model.color_model.parameters()
+    gray_params = model.gray_model.parameters()
+
     criterion = nn.CrossEntropyLoss().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    optimizer = optim.Adam([
+        {'params': classifier_params, 'weight_decay': weight_decay},
+        {'params': color_params, 'weight_decay': weight_decay, 'lr': 0},
+        {'params': gray_params, 'weight_decay': weight_decay}
+    ], lr=learning_rate, weight_decay=weight_decay)
     client_train_loss_list = []
     client_test_loss_list = []
     client_test_acc_rate_list = []
@@ -110,11 +126,11 @@ def gray_test(train_dataloader, test_dataloader):
         model.train()
         epoch_train_loss_list = []
         for batch in train_dataloader:
-            _, gray, labels, _ = batch
-            gray, labels = gray.to(device), labels.to(device)
+            color, gray, labels, _ = batch
+            color, gray, labels = color.to(device), gray.to(device), labels.to(device)
 
             optimizer.zero_grad()
-            output = model(None, gray)
+            output = model(color, gray)
             loss = criterion(output, labels)
             loss.backward()
             epoch_train_loss_list.append(loss.item())
@@ -128,9 +144,9 @@ def gray_test(train_dataloader, test_dataloader):
         epoch_test_loss_list = []
         with torch.no_grad():
             for batch in test_dataloader:
-                _, gray, labels, _ = batch
-                gray, labels = gray.to(device), labels.to(device)
-                output = model(None, gray)
+                color, gray, labels, _ = batch
+                color, gray, labels = color.to(device), gray.to(device), labels.to(device)
+                output = model(color, gray)
                 loss = criterion(output, labels)
                 epoch_test_loss_list.append(loss.item())
 
@@ -145,9 +161,9 @@ def gray_test(train_dataloader, test_dataloader):
     print(f'    Gray client result is saving...')
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
-    train_loss_excel_name = 'gray_train_loss_' + date_str
-    test_loss_excel_name = 'gray_test_loss_' + date_str
-    test_acc_excel_name = 'gray_test_acc_' + date_str
+    train_loss_excel_name = 'local_stitch_gray_train_loss_' + date_str
+    test_loss_excel_name = 'local_stitch_gray_test_loss_' + date_str
+    test_acc_excel_name = 'local_stitch_gray_test_acc_' + date_str
 
     save_acc_to_excel(train_loss_excel_name, client_train_loss_list, {})
     save_acc_to_excel(test_loss_excel_name, client_test_loss_list, {})
@@ -156,16 +172,24 @@ def gray_test(train_dataloader, test_dataloader):
 
 def multi_test(train_dataloader, test_dataloader):
     print(f'Multiple Client')
-    local_round_num = 50
+    local_round_num = 30
     learning_rate = 0.001
     weight_decay = 0.001
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = MultiModelForCifar()
+    model = MultiModelForCifar(device)
     model.to(device)
 
+    classifier_params = model.classifier.parameters()
+    color_params = model.color_model.parameters()
+    gray_params = model.gray_model.parameters()
+
     criterion = nn.CrossEntropyLoss().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    optimizer = optim.Adam([
+        {'params': classifier_params, 'weight_decay': weight_decay},
+        {'params': color_params, 'weight_decay': weight_decay},
+        {'params': gray_params, 'weight_decay': weight_decay}
+    ], lr=learning_rate, weight_decay=weight_decay)
     client_train_loss_list = []
     client_test_loss_list = []
     client_test_acc_rate_list = []
@@ -211,9 +235,9 @@ def multi_test(train_dataloader, test_dataloader):
     print(f'    Multiple client result is saving...')
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
-    train_loss_excel_name = 'multi_train_loss_' + date_str
-    test_loss_excel_name = 'multi_test_loss_' + date_str
-    test_acc_excel_name = 'multi_test_acc_' + date_str
+    train_loss_excel_name = 'local_stitch_multi_train_loss_' + date_str
+    test_loss_excel_name = 'local_stitch_multi_test_loss_' + date_str
+    test_acc_excel_name = 'local_stitch_multi_test_acc_' + date_str
 
     save_acc_to_excel(train_loss_excel_name, client_train_loss_list, {})
     save_acc_to_excel(test_loss_excel_name, client_test_loss_list, {})

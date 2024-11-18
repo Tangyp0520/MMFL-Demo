@@ -14,6 +14,6 @@ class MiniDataset(Dataset):
         return len(self.mini_dataset_ids)
 
     def __getitem__(self, idx):
-        image, label, id_value = self.dataset[self.mini_dataset_ids[idx]]
-        return image, label, id_value
+        color, gray, label, id_value = self.dataset[self.mini_dataset_ids[idx]]
+        return color, gray, label, id_value
 
