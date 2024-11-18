@@ -14,20 +14,20 @@ class CNNForCifar(nn.Module):
         else:
             img_channels = 1
         self.conv1 = nn.Conv2d(img_channels, 16, kernel_size=3, padding=1)
-        self.relu1 = nn.ReLU()
-        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.relu1 = nn.PReLU()
+        self.pool1 = nn.MaxPool2d(kernel_size=2)
 
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
-        self.relu2 = nn.ReLU()
-        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.relu2 = nn.PReLU()
+        self.pool2 = nn.MaxPool2d(kernel_size=2)
 
         self.conv3 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        self.relu3 = nn.ReLU()
-        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.relu3 = nn.PReLU()
+        self.pool3 = nn.MaxPool2d(kernel_size=2)
 
-        self.fc1 = nn.Linear(64 * 4 * 4, 128)
-        self.relu4 = nn.ReLU()
-        self.fc2 = nn.Linear(128, feature_size)
+        self.fc1 = nn.Linear(64 * 4 * 4, feature_size)
+        # self.relu4 = nn.PReLU()
+        # self.fc2 = nn.Linear(128, feature_size)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -44,8 +44,8 @@ class CNNForCifar(nn.Module):
 
         x = x.view(-1, 64 * 4 * 4)
         x = self.fc1(x)
-        x = self.relu4(x)
-        x = self.fc2(x)
+        # x = self.relu4(x)
+        # x = self.fc2(x)
 
         return x
 

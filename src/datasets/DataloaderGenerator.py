@@ -8,6 +8,7 @@ from src.datasets.MiniDataset import *
 from src.datasets.MNISTDataset import *
 from src.datasets.MNISTMDataset import *
 from src.datasets.CifarDataset import *
+from src.datasets.CifarMultiDataset import *
 
 
 def min_max_normalize(image):
@@ -92,6 +93,25 @@ def generate_dataset(dataset_type, data_path=None):
         # train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         test_dataset = CifarDataset(root='../data', train=False, transform=transform)
         # test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        return train_dataset, test_dataset
+
+    elif dataset_type == 'Multiple':
+        transform_color = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: min_max_normalize(x))
+        ])
+        transform_gray = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: convert_to_grayscale(x)),
+            transforms.Lambda(lambda x: min_max_normalize(x))
+        ])
+        train_dataset_color = CifarDataset(root='../data', train=True, transform=transform_color)
+        test_dataset_color = CifarDataset(root='../data', train=False, transform=transform_color)
+        train_dataset_gray = CifarDataset(root='../data', train=True, transform=transform_gray)
+        test_dataset_gray = CifarDataset(root='../data', train=False, transform=transform_gray)
+
+        train_dataset = CifarMultiDataset(train_dataset_color, train_dataset_gray)
+        test_dataset = CifarMultiDataset(test_dataset_color, test_dataset_gray)
         return train_dataset, test_dataset
 
 
