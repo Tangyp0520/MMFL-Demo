@@ -14,7 +14,7 @@ from src.datasets.DataloaderGenerator import *
 
 
 class ClientTrainer:
-    def __init__(self, client_id, train_dataset, test_dataset, client_batch_size, local_round_num=10, learning_rate=0.001, color=True):
+    def __init__(self, client_id, train_dataset, test_dataset, client_batch_size, local_round_num=5, learning_rate=0.001, color=True):
         self.client_id = client_id
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
