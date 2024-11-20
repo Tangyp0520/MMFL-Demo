@@ -22,7 +22,7 @@ from src.utils.ExcelUtil import *
 
 def color_test(train_dataloader, test_dataloader):
     print(f'Color Client')
-    local_round_num = 30
+    local_round_num = 50
     learning_rate = 0.001
     weight_decay = 0.001
 
@@ -98,7 +98,7 @@ def color_test(train_dataloader, test_dataloader):
 
 def gray_test(train_dataloader, test_dataloader):
     print(f'Gray Client')
-    local_round_num = 30
+    local_round_num = 50
     learning_rate = 0.001
     weight_decay = 0.001
 
@@ -172,7 +172,7 @@ def gray_test(train_dataloader, test_dataloader):
 
 def multi_test(train_dataloader, test_dataloader):
     print(f'Multiple Client')
-    local_round_num = 30
+    local_round_num = 50
     learning_rate = 0.001
     weight_decay = 0.001
 
