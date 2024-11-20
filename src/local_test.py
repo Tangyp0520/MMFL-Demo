@@ -87,9 +87,9 @@ def color_test(train_dataloader, test_dataloader):
     print(f'    Color client result is saving...')
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
-    train_loss_excel_name = 'local_stitch_color_train_loss_' + date_str
-    test_loss_excel_name = 'local_stitch_color_test_loss_' + date_str
-    test_acc_excel_name = 'local_stitch_color_test_acc_' + date_str
+    train_loss_excel_name = 'local_color_train_loss_' + date_str
+    test_loss_excel_name = 'local_color_test_loss_' + date_str
+    test_acc_excel_name = 'local_color_test_acc_' + date_str
 
     save_acc_to_excel(train_loss_excel_name, client_train_loss_list, {})
     save_acc_to_excel(test_loss_excel_name, client_test_loss_list, {})
@@ -161,9 +161,9 @@ def gray_test(train_dataloader, test_dataloader):
     print(f'    Gray client result is saving...')
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
-    train_loss_excel_name = 'local_stitch_gray_train_loss_' + date_str
-    test_loss_excel_name = 'local_stitch_gray_test_loss_' + date_str
-    test_acc_excel_name = 'local_stitch_gray_test_acc_' + date_str
+    train_loss_excel_name = 'local_gray_train_loss_' + date_str
+    test_loss_excel_name = 'local_gray_test_loss_' + date_str
+    test_acc_excel_name = 'local_gray_test_acc_' + date_str
 
     save_acc_to_excel(train_loss_excel_name, client_train_loss_list, {})
     save_acc_to_excel(test_loss_excel_name, client_test_loss_list, {})
@@ -235,9 +235,9 @@ def multi_test(train_dataloader, test_dataloader):
     print(f'    Multiple client result is saving...')
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
-    train_loss_excel_name = 'local_stitch_multi_train_loss_' + date_str
-    test_loss_excel_name = 'local_stitch_multi_test_loss_' + date_str
-    test_acc_excel_name = 'local_stitch_multi_test_acc_' + date_str
+    train_loss_excel_name = 'local_multi_train_loss_' + date_str
+    test_loss_excel_name = 'local_multi_test_loss_' + date_str
+    test_acc_excel_name = 'local_multi_test_acc_' + date_str
 
     save_acc_to_excel(train_loss_excel_name, client_train_loss_list, {})
     save_acc_to_excel(test_loss_excel_name, client_test_loss_list, {})
