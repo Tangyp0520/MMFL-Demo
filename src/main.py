@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # dataset_root_path = '/home/data2/duwenfeng/datasets/ModelNet10'
     # dataset_root_path = 'D:\.download\MNIST-M\data\mnist_m'
     dataset_root_path = '/home/data2/duwenfeng/datasets/MNIST'
-    global_round_num = 30
+    global_round_num = 50
 
     print('MMFL train start...')
     print(f'Global Round Num: {global_round_num}')
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     client_test_acc_rates = {}
     for client_id, client_trainer in mmfl.client_trainers.items():
         client_test_acc_rates[client_id] = client_trainer.client_test_acc_rate_list
-    excel_file_name = ('MMFL_Test_Loss_'+date_str)
+    excel_file_name = ('MMFL_Test_ACC_'+date_str)
                        # + '_HeadRoundNum' + str(mmfl.head_round_num)
                        # + '_HeadLearnRate' + str(mmfl.head_learn_rate))
     save_acc_to_excel(excel_file_name, head_test_acc_rates, client_test_acc_rates)

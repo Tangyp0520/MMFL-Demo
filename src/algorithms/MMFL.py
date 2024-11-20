@@ -64,10 +64,24 @@ class MMFl(object):
         # print(f'Mini Dataset Size: {self.mini_dataset_size}')
         # print(f'Mini Dataset Batch Size: {self.mini_dataset_batch_size}')
 
-    def model_aggregate(self, weight_accumulator):
+    def model_aggregate(self, classifier_weight_accumulator, color_weight_accumulator, gray_weight_accumulator):
         print(f'    Model Aggregate...')
-        for name, param in self.global_model.state_dict().items():
-            update_per_layer = weight_accumulator[name] / self.client_num
+        for name, param in self.global_model.classifier.state_dict().items():
+            update_per_layer = classifier_weight_accumulator[name] / self.client_num
+            if param.type() != update_per_layer.type():
+                param.add_(update_per_layer.to(torch.int64))
+            else:
+                param.add_(update_per_layer)
+
+        for name, param in self.global_model.color_model.state_dict().items():
+            update_per_layer = color_weight_accumulator[name]
+            if param.type() != update_per_layer.type():
+                param.add_(update_per_layer.to(torch.int64))
+            else:
+                param.add_(update_per_layer)
+
+        for name, param in self.global_model.gray_model.state_dict().items():
+            update_per_layer = gray_weight_accumulator[name]
             if param.type() != update_per_layer.type():
                 param.add_(update_per_layer.to(torch.int64))
             else:
@@ -100,14 +114,26 @@ class MMFl(object):
         print(f'Global train epoch: {epoch}')
         mini_train_idx = self.train_idx[epoch % len(self.train_idx)]
 
-        weight_accumulator = {}
-        for name, param in self.global_model.state_dict().items():
-            weight_accumulator[name] = torch.zeros_like(param)
+        classifier_weight_accumulator = {}
+        for name, param in self.global_model.classifier.state_dict().items():
+            classifier_weight_accumulator[name] = torch.zeros_like(param)
+        color_weight_accumulator = {}
+        for name, param in self.global_model.color_model.state_dict().items():
+            color_weight_accumulator[name] = torch.zeros_like(param)
+        gray_weight_accumulator = {}
+        for name, param in self.global_model.gray_model.state_dict().items():
+            gray_weight_accumulator[name] = torch.zeros_like(param)
 
         for client_id, client in self.client_trainers.items():
-            diff = client.train(self.global_model, mini_train_idx)
-            for name, param in self.global_model.state_dict().items():
-                weight_accumulator[name].add_(diff[name])
+            classifier_diff, color_diff, gray_diff = client.train(self.global_model, mini_train_idx)
+            # for name, param in self.global_model.state_dict().items():
+            #     weight_accumulator[name].add_(diff[name])
+            for name, param in classifier_diff.items():
+                classifier_weight_accumulator[name].add_(classifier_diff[name])
+            for name, param in color_diff.items():
+                color_weight_accumulator[name].add_(color_diff[name])
+            for name, param in gray_diff.items():
+                gray_weight_accumulator[name].add_(gray_diff[name])
 
-        self.model_aggregate(weight_accumulator)
+        self.model_aggregate(classifier_weight_accumulator, color_weight_accumulator, gray_weight_accumulator)
         self.model_eval()

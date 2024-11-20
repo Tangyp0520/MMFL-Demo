@@ -80,14 +80,6 @@ class ClientTrainer:
             for batch in train_dataloader:
                 color, gray, labels, _ = batch
                 color, gray, labels = color.to(self.device), gray.to(self.device), labels.to(self.device)
-                # color = None
-                # gray = None
-                # if self.color:
-                #     color, _, labels, _ = batch
-                #     color, labels = color.to(self.device), labels.to(self.device)
-                # else:
-                #     _, gray, labels, _ = batch
-                #     gray, labels = gray.to(self.device), labels.to(self.device)
 
                 self.optimizer.zero_grad()
                 output = self.model(color, gray)
@@ -107,14 +99,6 @@ class ClientTrainer:
             for batch in self.test_dataloader:
                 color, gray, labels, _ = batch
                 color, gray, labels = color.to(self.device), gray.to(self.device), labels.to(self.device)
-                # color = None
-                # gray = None
-                # if self.color:
-                #     color, _, labels, _ = batch
-                #     color, labels = color.to(self.device), labels.to(self.device)
-                # else:
-                #     _, gray, labels, _ = batch
-                #     gray, labels = gray.to(self.device), labels.to(self.device)
                 output = self.model(color, gray)
                 loss = self.criterion(output, labels)
                 epoch_test_loss_list.append(loss.item())
@@ -129,8 +113,14 @@ class ClientTrainer:
         self.client_test_loss_list.append(sum(epoch_test_loss_list) / len(epoch_test_loss_list))
 
         print(f'    Client {self.client_id} create diff dict...')
-        diff = dict()
-        for name, param in self.model.state_dict().items():
-            diff[name] = param - global_model.state_dict()[name]
-        return diff
+        classifier_diff = dict()
+        for name, param in self.model.classifier.state_dict().items():
+            classifier_diff[name] = param - global_model.classifier.state_dict()[name]
+        color_diff = dict()
+        for name, param in self.model.color_model.state_dict().items():
+            color_diff[name] = param - global_model.color_model.state_dict()[name]
+        gray_diff = dict()
+        for name, param in self.model.gray_model.state_dict().items():
+            gray_diff[name] = param - global_model.gray_model.state_dict()[name]
+        return classifier_diff, color_diff, gray_diff
 
