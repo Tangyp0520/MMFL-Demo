@@ -13,6 +13,7 @@ class MMFl(object):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.head_round_num = 10
         self.dataset_size = 128
+        self.class_num = 10
         self.train_dataset, self.test_dataset = generate_dataset('Multiple', dataset_root_path)
         self.train_idx = []
         self.split_train_dataset_index()
@@ -25,7 +26,7 @@ class MMFl(object):
         self.criterion = nn.CrossEntropyLoss().to(self.device)
         # self.optimizer = torch.optim.Adam(self.head.parameters(), lr=self.head_learn_rate, weight_decay=self.weight_decay)
         # self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
-        self.global_protos = []
+        self.global_protos = torch.tensor([])
 
         self.client_num = 2
         self.client_batch_size = 128
@@ -67,8 +68,8 @@ class MMFl(object):
 
     def proto_aggregate(self, local_protos_lists):
         global_protos = []
-        for i in range(len(local_protos_lists[0])):
-            class_protos = torch.stack([local_protos[i] for local_protos_lists in local_protos_lists for local_protos in local_protos_lists])
+        for i in range(self.class_num):
+            class_protos = torch.stack([local_protos_lists[i] for local_protos_lists in local_protos_lists])
             global_proto = torch.mean(class_protos, dim=0)
             global_protos.append(global_proto)
         return torch.stack(global_protos)
@@ -134,10 +135,14 @@ class MMFl(object):
         for name, param in self.global_model.gray_model.state_dict().items():
             gray_weight_accumulator[name] = torch.zeros_like(param)
 
+        print(f'global protos:{self.global_protos}')
+        print(f'global protos shape: {self.global_protos.shape}')
         local_protos_lists = []
         for client_id, client in self.client_trainers.items():
             classifier_diff, color_diff, gray_diff = client.train(self.global_model, self.global_protos, mini_train_idx)
-            local_protos = client.generate_proto()
+            local_protos = client.generate_proto(self.train_dataset)
+            print(local_protos)
+            print(local_protos.shape)
             local_protos_lists.append(local_protos)
             # for name, param in self.global_model.state_dict().items():
             #     weight_accumulator[name].add_(diff[name])

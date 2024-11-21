@@ -28,7 +28,7 @@ class ClientTrainer:
         self.local_round_num = local_round_num
         self.learning_rate = learning_rate
         self.weight_decay = 0.001
-        self.proto_reg = 0.1
+        self.proto_reg = 0.01
         self.color = color
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -68,12 +68,12 @@ class ClientTrainer:
         print(f'    Client Data Batch Size: {self.client_batch_size}')
         print(f'    Client Learning Rate: {self.learning_rate}')
 
-    def generate_proto(self):
+    def generate_proto(self, train_dataset):
         self.model.eval()
         embeddings = []
         labels = []
         with torch.no_grad():
-            for batch_idx, batch in enumerate(self.train_dataset):
+            for batch_idx, batch in enumerate(train_dataset):
                 self.optimizer.zero_grad()
                 color, gray, label, _ = batch
                 color, gray = color.to(self.device), gray.to(self.device)
@@ -93,39 +93,56 @@ class ClientTrainer:
             protos.append(prototype)
         return torch.stack(protos)
 
-    def generate_local_proto(self, train_dataset, global_protos):
-        self.model.eval()
-        embeddings = []
-        labels = []
-        with torch.no_grad():
-            for batch_idx, batch in enumerate(train_dataset):
-                self.optimizer.zero_grad()
-                color, gray, label, _ = batch
-                color, gray = color.to(self.device), gray.to(self.device)
-                color_embedding = self.model.color_model(color)
-                gray_embedding = self.model.gray_model(gray)
-                embedding = torch.cat((color_embedding, gray_embedding), dim=1)
-                embeddings.append(embedding)
-                labels.append(label)
-        self.model.train()
+    # def generate_local_proto(self, train_dataset, global_protos):
+    #     self.model.eval()
+    #     embeddings = []
+    #     labels = []
+    #     with torch.no_grad():
+    #         for batch_idx, batch in enumerate(train_dataset):
+    #             self.optimizer.zero_grad()
+    #             color, gray, label, _ = batch
+    #             color, gray = color.to(self.device), gray.to(self.device)
+    #             color_embedding = self.model.color_model(color)
+    #             gray_embedding = self.model.gray_model(gray)
+    #             embedding = torch.cat((color_embedding, gray_embedding), dim=1)
+    #             embeddings.append(embedding)
+    #             labels.append(label)
+    #     self.model.train()
+    #
+    #     embeddings = torch.cat(embeddings, dim=0)
+    #     labels = torch.tensor(labels)
+    #     protos = []
+    #     for i in range(self.class_num):
+    #         if i in labels:
+    #             class_embeddings = embeddings[labels == i]
+    #             prototype = torch.mean(class_embeddings, dim=0)
+    #             protos.append(prototype)
+    #         else:
+    #             protos.append(global_protos[i])
+    #     return torch.stack(protos)
 
-        embeddings = torch.cat(embeddings, dim=0)
-        labels = torch.tensor(labels)
-        protos = []
+    def compute_proto_loss(self, color, gray, labels, global_protos):
+        proto_loss = 0
+        if len(global_protos) < self.class_num:
+            return proto_loss
+
+        color = self.model.color_model(color)
+        gray = self.model.gray_model(gray)
+        embedding = torch.cat((color, gray), dim=1)
+
+        local_protos = []
         for i in range(self.class_num):
             if i in labels:
-                class_embeddings = embeddings[labels == i]
-                prototype = torch.mean(class_embeddings, dim=0)
-                protos.append(prototype)
+                class_embeddings = embedding[labels == i]
+                proto = torch.mean(class_embeddings, dim=0)
+                local_protos.append(proto)
             else:
-                protos.append(global_protos[i])
-        return torch.stack(protos)
+                local_protos.append(global_protos[i])
+        local_protos = torch.stack(local_protos)
 
-    def compute_proto_loss(self, train_dataloader, global_protos):
-        local_protos = self.generate_local_proto(train_dataloader.dataset, global_protos)
-        proto_loss = 0
         for i in range(len(global_protos)):
             proto_loss += torch.norm(local_protos[i] - global_protos[i])
+        print(proto_loss.item())
         return proto_loss
 
     def train(self, global_model, global_protos, mini_train_idx):
@@ -147,7 +164,7 @@ class ClientTrainer:
                 self.optimizer.zero_grad()
                 output = self.model(color, gray)
                 loss = self.criterion(output, labels)
-                proto_loss = self.compute_proto_loss(train_dataloader, global_protos)
+                proto_loss = self.compute_proto_loss(color, gray, labels, global_protos)
                 loss += self.proto_reg * proto_loss
                 loss.backward()
                 epoch_train_loss_list.append(loss.item())
@@ -166,6 +183,8 @@ class ClientTrainer:
                 color, gray, labels = color.to(self.device), gray.to(self.device), labels.to(self.device)
                 output = self.model(color, gray)
                 loss = self.criterion(output, labels)
+                proto_loss = self.compute_proto_loss(color, gray, labels, global_protos)
+                loss += self.proto_reg * proto_loss
                 epoch_test_loss_list.append(loss.item())
 
                 _, predicted = torch.max(output.data, 1)
