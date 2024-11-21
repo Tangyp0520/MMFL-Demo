@@ -47,7 +47,7 @@ if __name__ == '__main__':
     client_test_loss_lists = {}
     for client_id, client_trainer in mmfl.client_trainers.items():
         client_test_loss_lists[client_id] = client_trainer.client_test_loss_list
-    excel_file_name = ('MMFL_Test_Loss_' + date_str)
+    excel_file_name = ('MMFL_Proto_Test_Loss_' + date_str)
                        # + '_HeadRoundNum' + str(mmfl.head_round_num)
                        # + '_HeadLearnRate' + str(mmfl.head_learn_rate))
     save_acc_to_excel(excel_file_name, head_test_loss_lists, client_test_loss_lists)
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     client_test_acc_rates = {}
     for client_id, client_trainer in mmfl.client_trainers.items():
         client_test_acc_rates[client_id] = client_trainer.client_test_acc_rate_list
-    excel_file_name = ('MMFL_Test_ACC_'+date_str)
+    excel_file_name = ('MMFL_Proto_Test_ACC_'+date_str)
                        # + '_HeadRoundNum' + str(mmfl.head_round_num)
                        # + '_HeadLearnRate' + str(mmfl.head_learn_rate))
     save_acc_to_excel(excel_file_name, head_test_acc_rates, client_test_acc_rates)

@@ -25,6 +25,7 @@ class MMFl(object):
         self.criterion = nn.CrossEntropyLoss().to(self.device)
         # self.optimizer = torch.optim.Adam(self.head.parameters(), lr=self.head_learn_rate, weight_decay=self.weight_decay)
         # self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
+        self.global_protos = []
 
         self.client_num = 2
         self.client_batch_size = 128
@@ -63,6 +64,14 @@ class MMFl(object):
         print(f'Client Dataset Batch Size: {self.client_batch_size}')
         # print(f'Mini Dataset Size: {self.mini_dataset_size}')
         # print(f'Mini Dataset Batch Size: {self.mini_dataset_batch_size}')
+
+    def proto_aggregate(self, local_protos_lists):
+        global_protos = []
+        for i in range(len(local_protos_lists[0])):
+            class_protos = torch.stack([local_protos[i] for local_protos_lists in local_protos_lists for local_protos in local_protos_lists])
+            global_proto = torch.mean(class_protos, dim=0)
+            global_protos.append(global_proto)
+        return torch.stack(global_protos)
 
     def model_aggregate(self, classifier_weight_accumulator, color_weight_accumulator, gray_weight_accumulator):
         print(f'    Model Aggregate...')
@@ -113,6 +122,7 @@ class MMFl(object):
     def train(self, epoch):
         print(f'Global train epoch: {epoch}')
         mini_train_idx = self.train_idx[epoch % len(self.train_idx)]
+        train_dataloader = generate_mini_dataloader(self.train_dataset, self.dataset_size, mini_train_idx)
 
         classifier_weight_accumulator = {}
         for name, param in self.global_model.classifier.state_dict().items():
@@ -124,8 +134,11 @@ class MMFl(object):
         for name, param in self.global_model.gray_model.state_dict().items():
             gray_weight_accumulator[name] = torch.zeros_like(param)
 
+        local_protos_lists = []
         for client_id, client in self.client_trainers.items():
-            classifier_diff, color_diff, gray_diff = client.train(self.global_model, mini_train_idx)
+            classifier_diff, color_diff, gray_diff = client.train(self.global_model, self.global_protos, mini_train_idx)
+            local_protos = client.generate_proto()
+            local_protos_lists.append(local_protos)
             # for name, param in self.global_model.state_dict().items():
             #     weight_accumulator[name].add_(diff[name])
             for name, param in classifier_diff.items():
@@ -136,4 +149,5 @@ class MMFl(object):
                 gray_weight_accumulator[name].add_(gray_diff[name])
 
         self.model_aggregate(classifier_weight_accumulator, color_weight_accumulator, gray_weight_accumulator)
+        self.global_protos = self.proto_aggregate(local_protos_lists)
         self.model_eval()
