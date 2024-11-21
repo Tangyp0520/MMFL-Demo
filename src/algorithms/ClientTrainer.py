@@ -142,7 +142,7 @@ class ClientTrainer:
 
         for i in range(len(global_protos)):
             proto_loss += torch.norm(local_protos[i] - global_protos[i])
-        print(proto_loss.item())
+        # print(proto_loss.item())
         return proto_loss
 
     def train(self, global_model, global_protos, mini_train_idx):

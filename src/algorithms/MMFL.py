@@ -135,14 +135,14 @@ class MMFl(object):
         for name, param in self.global_model.gray_model.state_dict().items():
             gray_weight_accumulator[name] = torch.zeros_like(param)
 
-        print(f'global protos:{self.global_protos}')
-        print(f'global protos shape: {self.global_protos.shape}')
+        # print(f'global protos:{self.global_protos}')
+        # print(f'global protos shape: {self.global_protos.shape}')
         local_protos_lists = []
         for client_id, client in self.client_trainers.items():
             classifier_diff, color_diff, gray_diff = client.train(self.global_model, self.global_protos, mini_train_idx)
             local_protos = client.generate_proto(self.train_dataset)
-            print(local_protos)
-            print(local_protos.shape)
+            # print(local_protos)
+            # print(local_protos.shape)
             local_protos_lists.append(local_protos)
             # for name, param in self.global_model.state_dict().items():
             #     weight_accumulator[name].add_(diff[name])
