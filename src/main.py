@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # dataset_root_path = '/home/data2/duwenfeng/datasets/ModelNet10'
     # dataset_root_path = 'D:\.download\MNIST-M\data\mnist_m'
     dataset_root_path = '/home/data2/duwenfeng/datasets/MNIST'
-    global_round_num = 50
+    global_round_num = 100
 
     print('MMFL train start...')
     print(f'Global Round Num: {global_round_num}')

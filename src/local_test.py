@@ -20,9 +20,9 @@ from src.datasets.DataloaderGenerator import *
 from src.utils.ExcelUtil import *
 
 
-def color_test(train_dataloader, test_dataloader):
+def color_test(train_dataloader, test_dataloader, local_round_num):
     print(f'Color Client')
-    local_round_num = 50
+    # local_round_num = 50
     learning_rate = 0.001
     weight_decay = 0.001
 
@@ -96,9 +96,9 @@ def color_test(train_dataloader, test_dataloader):
     save_acc_to_excel(test_acc_excel_name, client_test_acc_rate_list, {})
 
 
-def gray_test(train_dataloader, test_dataloader):
+def gray_test(train_dataloader, test_dataloader, local_round_num):
     print(f'Gray Client')
-    local_round_num = 50
+    # local_round_num = 50
     learning_rate = 0.001
     weight_decay = 0.001
 
@@ -170,9 +170,9 @@ def gray_test(train_dataloader, test_dataloader):
     save_acc_to_excel(test_acc_excel_name, client_test_acc_rate_list, {})
 
 
-def multi_test(train_dataloader, test_dataloader):
+def multi_test(train_dataloader, test_dataloader, local_round_num):
     print(f'Multiple Client')
-    local_round_num = 50
+    # local_round_num = 50
     learning_rate = 0.001
     weight_decay = 0.001
 
@@ -248,7 +248,8 @@ train_dataset, test_dataset = generate_dataset('Multiple')
 train_dataloader = DataLoader(train_dataset, batch_size=128, shuffle=True)
 test_dataloader = DataLoader(test_dataset, batch_size=128, shuffle=False)
 
+local_round_num = 100
 
-multi_test(train_dataloader, test_dataloader)
-color_test(train_dataloader, test_dataloader)
-gray_test(train_dataloader, test_dataloader)
+multi_test(train_dataloader, test_dataloader, local_round_num)
+color_test(train_dataloader, test_dataloader, local_round_num)
+gray_test(train_dataloader, test_dataloader, local_round_num)
