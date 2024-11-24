@@ -93,34 +93,6 @@ class ClientTrainer:
             protos.append(prototype)
         return torch.stack(protos)
 
-    # def generate_local_proto(self, train_dataset, global_protos):
-    #     self.model.eval()
-    #     embeddings = []
-    #     labels = []
-    #     with torch.no_grad():
-    #         for batch_idx, batch in enumerate(train_dataset):
-    #             self.optimizer.zero_grad()
-    #             color, gray, label, _ = batch
-    #             color, gray = color.to(self.device), gray.to(self.device)
-    #             color_embedding = self.model.color_model(color)
-    #             gray_embedding = self.model.gray_model(gray)
-    #             embedding = torch.cat((color_embedding, gray_embedding), dim=1)
-    #             embeddings.append(embedding)
-    #             labels.append(label)
-    #     self.model.train()
-    #
-    #     embeddings = torch.cat(embeddings, dim=0)
-    #     labels = torch.tensor(labels)
-    #     protos = []
-    #     for i in range(self.class_num):
-    #         if i in labels:
-    #             class_embeddings = embeddings[labels == i]
-    #             prototype = torch.mean(class_embeddings, dim=0)
-    #             protos.append(prototype)
-    #         else:
-    #             protos.append(global_protos[i])
-    #     return torch.stack(protos)
-
     def compute_proto_loss(self, color, gray, labels, global_protos):
         proto_loss = 0
         if len(global_protos) < self.class_num:
