@@ -20,9 +20,8 @@ from src.datasets.DataloaderGenerator import *
 from src.utils.ExcelUtil import *
 
 
-def color_test(train_dataloader, test_dataloader, local_round_num):
+def color_test(train_dataloader, test_dataloader, round_num):
     print(f'Color Client')
-    # local_round_num = 50
     learning_rate = 0.001
     weight_decay = 0.001
 
@@ -45,7 +44,7 @@ def color_test(train_dataloader, test_dataloader, local_round_num):
     client_test_acc_rate_list = []
 
     print(f'    Color client train')
-    for epoch in range(local_round_num):
+    for epoch in range(round_num):
         print(f'    Color client epoch: {epoch}')
         model.train()
         epoch_train_loss_list = []
@@ -77,8 +76,6 @@ def color_test(train_dataloader, test_dataloader, local_round_num):
                 _, predicted = torch.max(output.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
-                # print(f'labels: {labels}')
-                # print(f'predicted: {predicted}')
         print(f'    Color client accuracy on test set: {(100 * correct / total):.2f}%')
         print(f'    Color client test loss avg: {sum(epoch_test_loss_list) / len(epoch_test_loss_list)}')
         client_test_acc_rate_list.append(100 * correct / total)
@@ -87,18 +84,15 @@ def color_test(train_dataloader, test_dataloader, local_round_num):
     print(f'    Color client result is saving...')
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
-    train_loss_excel_name = 'local_color_train_loss_' + date_str
     test_loss_excel_name = 'local_color_test_loss_' + date_str
     test_acc_excel_name = 'local_color_test_acc_' + date_str
 
-    save_acc_to_excel(train_loss_excel_name, client_train_loss_list, {})
     save_acc_to_excel(test_loss_excel_name, client_test_loss_list, {})
     save_acc_to_excel(test_acc_excel_name, client_test_acc_rate_list, {})
 
 
-def gray_test(train_dataloader, test_dataloader, local_round_num):
+def gray_test(train_dataloader, test_dataloader, round_num):
     print(f'Gray Client')
-    # local_round_num = 50
     learning_rate = 0.001
     weight_decay = 0.001
 
@@ -121,7 +115,7 @@ def gray_test(train_dataloader, test_dataloader, local_round_num):
     client_test_acc_rate_list = []
 
     print(f'    Gray client train')
-    for epoch in range(local_round_num):
+    for epoch in range(round_num):
         print(f'    Gray client epoch: {epoch}')
         model.train()
         epoch_train_loss_list = []
@@ -161,18 +155,15 @@ def gray_test(train_dataloader, test_dataloader, local_round_num):
     print(f'    Gray client result is saving...')
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
-    train_loss_excel_name = 'local_gray_train_loss_' + date_str
     test_loss_excel_name = 'local_gray_test_loss_' + date_str
     test_acc_excel_name = 'local_gray_test_acc_' + date_str
 
-    save_acc_to_excel(train_loss_excel_name, client_train_loss_list, {})
     save_acc_to_excel(test_loss_excel_name, client_test_loss_list, {})
     save_acc_to_excel(test_acc_excel_name, client_test_acc_rate_list, {})
 
 
-def multi_test(train_dataloader, test_dataloader, local_round_num):
+def multi_test(train_dataloader, test_dataloader, round_num):
     print(f'Multiple Client')
-    # local_round_num = 50
     learning_rate = 0.001
     weight_decay = 0.001
 
@@ -195,7 +186,7 @@ def multi_test(train_dataloader, test_dataloader, local_round_num):
     client_test_acc_rate_list = []
 
     print(f'    Multiple client train')
-    for epoch in range(local_round_num):
+    for epoch in range(round_num):
         print(f'    Multiple client epoch: {epoch}')
         model.train()
         epoch_train_loss_list = []
@@ -235,21 +226,19 @@ def multi_test(train_dataloader, test_dataloader, local_round_num):
     print(f'    Multiple client result is saving...')
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
-    train_loss_excel_name = 'local_multi_train_loss_' + date_str
     test_loss_excel_name = 'local_multi_test_loss_' + date_str
     test_acc_excel_name = 'local_multi_test_acc_' + date_str
 
-    save_acc_to_excel(train_loss_excel_name, client_train_loss_list, {})
     save_acc_to_excel(test_loss_excel_name, client_test_loss_list, {})
     save_acc_to_excel(test_acc_excel_name, client_test_acc_rate_list, {})
 
 
 train_dataset, test_dataset = generate_dataset('Multiple')
-train_dataloader = DataLoader(train_dataset, batch_size=128, shuffle=True)
-test_dataloader = DataLoader(test_dataset, batch_size=128, shuffle=False)
+local_train_dataloader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+local_test_dataloader = DataLoader(test_dataset, batch_size=128, shuffle=False)
 
 local_round_num = 100
 
-multi_test(train_dataloader, test_dataloader, local_round_num)
-color_test(train_dataloader, test_dataloader, local_round_num)
-gray_test(train_dataloader, test_dataloader, local_round_num)
+multi_test(local_train_dataloader, local_test_dataloader, local_round_num)
+color_test(local_train_dataloader, local_test_dataloader, local_round_num)
+gray_test(local_train_dataloader, local_test_dataloader, local_round_num)

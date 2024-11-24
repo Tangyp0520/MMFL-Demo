@@ -32,24 +32,13 @@ if __name__ == '__main__':
 
     print('Save result...')
     current_time = datetime.datetime.now()
-    date_str = current_time.strftime('%Y-%m-%d')
-
-    # head_train_loss_lists = mmfl.train_loss_list
-    # client_train_loss_lists = {}
-    # for client_id, client_trainer in mmfl.client_trainers.items():
-    #     client_train_loss_lists[client_id] = client_trainer.client_train_loss_list
-    # excel_file_name = ('Train Loss ' + date_str
-    #                    + '_HeadRoundNum' + str(mmfl.head_round_num)
-    #                    + '_HeadLearnRate' + str(mmfl.head_learn_rate))
-    # save_acc_to_excel(excel_file_name, head_train_loss_lists, client_train_loss_lists)
+    date_str = current_time.strftime('%Y_%m_%d')
 
     head_test_loss_lists = mmfl.test_loss_list
     client_test_loss_lists = {}
     for client_id, client_trainer in mmfl.client_trainers.items():
         client_test_loss_lists[client_id] = client_trainer.client_test_loss_list
     excel_file_name = ('MMFL_Test_Loss_' + date_str)
-                       # + '_HeadRoundNum' + str(mmfl.head_round_num)
-                       # + '_HeadLearnRate' + str(mmfl.head_learn_rate))
     save_acc_to_excel(excel_file_name, head_test_loss_lists, client_test_loss_lists)
 
     head_test_acc_rates = mmfl.test_acc_rate_list
@@ -57,6 +46,4 @@ if __name__ == '__main__':
     for client_id, client_trainer in mmfl.client_trainers.items():
         client_test_acc_rates[client_id] = client_trainer.client_test_acc_rate_list
     excel_file_name = ('MMFL_Test_ACC_'+date_str)
-                       # + '_HeadRoundNum' + str(mmfl.head_round_num)
-                       # + '_HeadLearnRate' + str(mmfl.head_learn_rate))
     save_acc_to_excel(excel_file_name, head_test_acc_rates, client_test_acc_rates)
