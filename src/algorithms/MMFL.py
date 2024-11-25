@@ -10,28 +10,34 @@ from src.algorithms.ClientTrainer import *
 class MMFl(object):
     def __init__(self, dataset_root_path):
         self.dataset_root_path = dataset_root_path
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # self.head_round_num = 10
-        self.dataset_size = 128
+        self.batch_size = 128
         self.train_dataset, self.test_dataset = generate_dataset('Multiple', dataset_root_path)
+        self.test_dataloader = DataLoader(dataset=self.test_dataset, batch_size=self.batch_size, shuffle=True)
         self.train_idx = []
         self.split_train_dataset_index()
-        self.test_dataloader = DataLoader(dataset=self.test_dataset, batch_size=self.dataset_size, shuffle=True)
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.global_model = MultiModelForCifar(self.device)
         self.global_model.to(self.device)
-        # self.head_learn_rate = 0.001
-        # self.weight_decay = 0.001
+        self.head_round_num = 1
+        self.head_learning_rate = 0.001
+        self.head_weight_decay = 0.001
+
         self.criterion = nn.CrossEntropyLoss().to(self.device)
-        # self.optimizer = torch.optim.Adam(self.head.parameters(), lr=self.head_learn_rate, weight_decay=self.weight_decay)
-        # self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
+        classifier_params = self.global_model.classifier.parameters()
+        color_params = self.global_model.color_model.parameters()
+        gray_params = self.global_model.gray_model.parameters()
+        self.optimizer = optim.Adam([
+            {'params': classifier_params, 'weight_decay': self.head_weight_decay},
+            {'params': color_params, 'weight_decay': self.head_weight_decay, 'lr': 0},
+            {'params': gray_params, 'weight_decay': self.head_weight_decay, 'lr': 0}
+        ], lr=self.head_learning_rate, weight_decay=self.head_weight_decay)
 
         self.client_num = 2
-        self.client_batch_size = 128
         self.client_trainers = {}
         self.client_ids = []
         for i, (dataset_type, color) in enumerate([('Cifar-gray', False), ('Cifar', True)]):
-            self.client_trainers[i] = ClientTrainer(i, self.train_dataset, self.test_dataset, self.client_batch_size, color=color)
+            self.client_trainers[i] = ClientTrainer(i, self.train_dataset, self.test_dataset, self.batch_size, color=color)
             self.client_ids.append(i)
 
         self.test_loss_list = []
@@ -39,7 +45,6 @@ class MMFl(object):
         self.print_info()
         for _, client_trainer in self.client_trainers.items():
             client_trainer.print_info()
-            # client_trainer.test()
 
     def split_train_dataset_index(self):
         all_idx = range(len(self.train_dataset))
@@ -54,18 +59,16 @@ class MMFl(object):
 
     def print_info(self):
         print(f'MMFL device: {self.device}')
-        print(f'Head Model: ClassifierModel')
-        # print(f'Head Round Num: {self.head_round_num}')
-        print(f'Head Dataset: CIFAR')
-        # print(f'Head Dataset Batch Size: {self.head_dataset_batch_size}')
-        # print(f'Head Learning rate: {self.head_learn_rate}')
+        print(f'Global Model: ClassifierModel')
+        print(f'Global Round Num: {self.head_round_num}')
+        print(f'Global Dataset: CIFAR10')
+        print(f'Global Dataset Batch Size: {self.batch_size}')
+        print(f'Global Learning rate: {self.head_learning_rate}')
         print(f'Client Num: {self.client_num}')
-        print(f'Client Dataset Batch Size: {self.client_batch_size}')
-        # print(f'Mini Dataset Size: {self.mini_dataset_size}')
-        # print(f'Mini Dataset Batch Size: {self.mini_dataset_batch_size}')
+        print(f'Client Dataset Batch Size: {self.batch_size}')
 
     def model_aggregate(self, classifier_weight_accumulator, color_weight_accumulator, gray_weight_accumulator):
-        print(f'    Model Aggregate...')
+        print(f'    Global Model Aggregate...')
         for name, param in self.global_model.classifier.state_dict().items():
             update_per_layer = classifier_weight_accumulator[name] / self.client_num
             if param.type() != update_per_layer.type():
@@ -87,8 +90,25 @@ class MMFl(object):
             else:
                 param.add_(update_per_layer)
 
+    def model_train(self, mini_train_idx):
+        print(f'    Global Model Training...')
+        train_dataloader = generate_mini_dataloader(self.train_dataset, self.batch_size, mini_train_idx)
+
+        self.global_model.train()
+        for _ in range(self.head_round_num):
+            for batch in train_dataloader:
+                color, gray, labels, _ = batch
+                color, gray, labels = color.to(self.device), gray.to(self.device), labels.to(self.device)
+
+                self.optimizer.zero_grad()
+                output = self.global_model(color, gray)
+
+                loss = self.criterion(output, labels)
+                loss.backward()
+                self.optimizer.step()
+
     def model_eval(self):
-        print(f'    Server Model Evaluation...')
+        print(f'    Global Model Evaluation...')
         self.global_model.eval()
         total = 0
         correct = 0
@@ -98,15 +118,15 @@ class MMFl(object):
                 color, gray, labels, _ = batch
                 color, gray, labels = color.to(self.device), gray.to(self.device), labels.to(self.device)
                 output = self.global_model(color, gray)
+
                 loss = self.criterion(output, labels)
                 epoch_loss_list.append(loss.item())
-
                 _, predicted = torch.max(output.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
-        print(f'    Server test loss avg: {sum(epoch_loss_list) / len(epoch_loss_list)}')
-        print(f'    Server history accuracy on test set: {self.test_acc_rate_list}')
-        print(f'    Server accuracy on test set: {(100 * correct / total):.2f}%')
+        print(f'    Global test loss avg: {sum(epoch_loss_list) / len(epoch_loss_list)}')
+        print(f'    Global history accuracy on test set: {self.test_acc_rate_list}')
+        print(f'    Global accuracy on test set: {(100 * correct / total):.2f}%')
         self.test_acc_rate_list.append(100 * correct / total)
         self.test_loss_list.append(sum(epoch_loss_list) / len(epoch_loss_list))
 
@@ -126,8 +146,6 @@ class MMFl(object):
 
         for client_id, client in self.client_trainers.items():
             classifier_diff, color_diff, gray_diff = client.train(self.global_model, mini_train_idx)
-            # for name, param in self.global_model.state_dict().items():
-            #     weight_accumulator[name].add_(diff[name])
             for name, param in classifier_diff.items():
                 classifier_weight_accumulator[name].add_(classifier_diff[name])
             for name, param in color_diff.items():
@@ -136,4 +154,5 @@ class MMFl(object):
                 gray_weight_accumulator[name].add_(gray_diff[name])
 
         self.model_aggregate(classifier_weight_accumulator, color_weight_accumulator, gray_weight_accumulator)
+        self.model_train(mini_train_idx)
         self.model_eval()

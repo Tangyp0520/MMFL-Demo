@@ -31,6 +31,7 @@ if __name__ == '__main__':
     print('MMFL train end.')
 
     print('Save result...')
+    file_head_name = '_mmfl_resnet_cifar100_'
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
 
@@ -38,12 +39,12 @@ if __name__ == '__main__':
     client_test_loss_lists = {}
     for client_id, client_trainer in mmfl.client_trainers.items():
         client_test_loss_lists[client_id] = client_trainer.client_test_loss_list
-    excel_file_name = ('MMFL_Test_Loss_' + date_str)
+    excel_file_name = (date_str + file_head_name + 'loss')
     save_acc_to_excel(excel_file_name, head_test_loss_lists, client_test_loss_lists)
 
     head_test_acc_rates = mmfl.test_acc_rate_list
     client_test_acc_rates = {}
     for client_id, client_trainer in mmfl.client_trainers.items():
         client_test_acc_rates[client_id] = client_trainer.client_test_acc_rate_list
-    excel_file_name = ('MMFL_Test_ACC_'+date_str)
+    excel_file_name = (date_str + file_head_name + 'acc')
     save_acc_to_excel(excel_file_name, head_test_acc_rates, client_test_acc_rates)

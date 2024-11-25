@@ -14,14 +14,13 @@ from src.datasets.DataloaderGenerator import *
 
 
 class ClientTrainer:
-    def __init__(self, client_id, train_dataset, test_dataset, client_batch_size, local_round_num=1, learning_rate=0.001, color=True):
+    def __init__(self, client_id, train_dataset, test_dataset, batch_size, local_round_num=1, learning_rate=0.001, color=True):
         self.client_id = client_id
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
-        self.client_batch_size = client_batch_size
+        self.batch_size = batch_size
 
-        # self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.client_batch_size, shuffle=True)
-        self.test_dataloader = DataLoader(self.test_dataset, batch_size=self.client_batch_size, shuffle=False)
+        self.test_dataloader = DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
 
         self.local_round_num = local_round_num
         self.learning_rate = learning_rate
@@ -39,20 +38,18 @@ class ClientTrainer:
         self.criterion = nn.CrossEntropyLoss().to(self.device)
         if self.color:
             self.optimizer = optim.Adam([
-                {'params': classifier_params, 'weight_decay': self.weight_decay},
+                {'params': classifier_params, 'weight_decay': self.weight_decay, 'lr': 0},
                 {'params': color_params, 'weight_decay': self.weight_decay},
                 {'params': gray_params, 'weight_decay': self.weight_decay, 'lr': 0}
             ], lr=self.learning_rate, weight_decay=self.weight_decay)
         else:
             self.optimizer = optim.Adam([
-                {'params': classifier_params, 'weight_decay': self.weight_decay},
+                {'params': classifier_params, 'weight_decay': self.weight_decay, 'lr': 0},
                 {'params': color_params, 'weight_decay': self.weight_decay, 'lr': 0},
                 {'params': gray_params, 'weight_decay': self.weight_decay}
             ], lr=self.learning_rate, weight_decay=self.weight_decay)
         # self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
 
-        # self.client_train_acc_rates = []
-        self.client_train_loss_list = []
         self.client_test_loss_list = []
         self.client_test_acc_rate_list = []
 
@@ -62,12 +59,12 @@ class ClientTrainer:
         print(f'    Client Model: MultiModelForCifar')
         print(f'    Client Local Round Num: {self.local_round_num}')
         print(f'    Client Dataset Color: {self.color}')
-        print(f'    Client Data Batch Size: {self.client_batch_size}')
+        print(f'    Client Dataset Batch Size: {self.batch_size}')
         print(f'    Client Learning Rate: {self.learning_rate}')
 
     def train(self, global_model, mini_train_idx):
         # 小批量数据集生成
-        train_dataloader = generate_mini_dataloader(self.train_dataset, self.client_batch_size, mini_train_idx)
+        train_dataloader = generate_mini_dataloader(self.train_dataset, self.batch_size, mini_train_idx)
         # 模型聚合
         print(f'    Client {self.client_id} model fusion...')
         for name, param in global_model.state_dict().items():
@@ -75,7 +72,6 @@ class ClientTrainer:
 
         print(f'    Client {self.client_id} train...')
         self.model.train()
-        epoch_train_loss_list = []
         for epoch in range(self.local_round_num):
             for batch in train_dataloader:
                 color, gray, labels, _ = batch
@@ -85,10 +81,7 @@ class ClientTrainer:
                 output = self.model(color, gray)
                 loss = self.criterion(output, labels)
                 loss.backward()
-                epoch_train_loss_list.append(loss.item())
                 self.optimizer.step()
-        print(f'    Client {self.client_id} train loss avg: {sum(epoch_train_loss_list) / len(epoch_train_loss_list)}')
-        self.client_train_loss_list.append(sum(epoch_train_loss_list) / len(epoch_train_loss_list))
 
         print(f'    Client {self.client_id} test...')
         self.model.eval()

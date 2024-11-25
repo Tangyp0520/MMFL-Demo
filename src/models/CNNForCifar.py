@@ -25,7 +25,7 @@ class CNNForCifar(nn.Module):
         self.relu3 = nn.PReLU()
         self.pool3 = nn.MaxPool2d(kernel_size=2)
 
-        self.fc1 = nn.Linear(64 * 4 * 4, feature_size)
+        self.fc = nn.Linear(64 * 4 * 4, feature_size)
         # self.relu4 = nn.PReLU()
         # self.fc2 = nn.Linear(128, feature_size)
 
@@ -43,9 +43,7 @@ class CNNForCifar(nn.Module):
         x = self.pool3(x)
 
         x = x.view(-1, 64 * 4 * 4)
-        x = self.fc1(x)
-        # x = self.relu4(x)
-        # x = self.fc2(x)
+        x = self.fc(x)
 
         return x
 

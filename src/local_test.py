@@ -20,7 +20,7 @@ from src.datasets.DataloaderGenerator import *
 from src.utils.ExcelUtil import *
 
 
-def color_test(train_dataloader, test_dataloader, round_num):
+def color_test(train_dataloader, test_dataloader, round_num, file_name):
     print(f'Color Client')
     learning_rate = 0.001
     weight_decay = 0.001
@@ -84,14 +84,14 @@ def color_test(train_dataloader, test_dataloader, round_num):
     print(f'    Color client result is saving...')
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
-    test_loss_excel_name = 'local_color_test_loss_' + date_str
-    test_acc_excel_name = 'local_color_test_acc_' + date_str
+    test_loss_excel_name = date_str + file_name + 'color_loss'
+    test_acc_excel_name = date_str + file_name + 'color_acc'
 
     save_acc_to_excel(test_loss_excel_name, client_test_loss_list, {})
     save_acc_to_excel(test_acc_excel_name, client_test_acc_rate_list, {})
 
 
-def gray_test(train_dataloader, test_dataloader, round_num):
+def gray_test(train_dataloader, test_dataloader, round_num, file_name):
     print(f'Gray Client')
     learning_rate = 0.001
     weight_decay = 0.001
@@ -155,14 +155,14 @@ def gray_test(train_dataloader, test_dataloader, round_num):
     print(f'    Gray client result is saving...')
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
-    test_loss_excel_name = 'local_gray_test_loss_' + date_str
-    test_acc_excel_name = 'local_gray_test_acc_' + date_str
+    test_loss_excel_name = date_str + file_name + 'gray_loss'
+    test_acc_excel_name = date_str + file_name + 'gray_acc'
 
     save_acc_to_excel(test_loss_excel_name, client_test_loss_list, {})
     save_acc_to_excel(test_acc_excel_name, client_test_acc_rate_list, {})
 
 
-def multi_test(train_dataloader, test_dataloader, round_num):
+def multi_test(train_dataloader, test_dataloader, round_num, file_name):
     print(f'Multiple Client')
     learning_rate = 0.001
     weight_decay = 0.001
@@ -226,8 +226,8 @@ def multi_test(train_dataloader, test_dataloader, round_num):
     print(f'    Multiple client result is saving...')
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
-    test_loss_excel_name = 'local_multi_test_loss_' + date_str
-    test_acc_excel_name = 'local_multi_test_acc_' + date_str
+    test_loss_excel_name = date_str + file_name + 'multi_loss'
+    test_acc_excel_name = date_str + file_name + 'multi_acc'
 
     save_acc_to_excel(test_loss_excel_name, client_test_loss_list, {})
     save_acc_to_excel(test_acc_excel_name, client_test_acc_rate_list, {})
@@ -238,7 +238,7 @@ local_train_dataloader = DataLoader(train_dataset, batch_size=128, shuffle=True)
 local_test_dataloader = DataLoader(test_dataset, batch_size=128, shuffle=False)
 
 local_round_num = 100
-
-multi_test(local_train_dataloader, local_test_dataloader, local_round_num)
-color_test(local_train_dataloader, local_test_dataloader, local_round_num)
-gray_test(local_train_dataloader, local_test_dataloader, local_round_num)
+file_head_name = '_local_resnet_cifar100_'
+multi_test(local_train_dataloader, local_test_dataloader, local_round_num, file_head_name)
+color_test(local_train_dataloader, local_test_dataloader, local_round_num, file_head_name)
+gray_test(local_train_dataloader, local_test_dataloader, local_round_num, file_head_name)

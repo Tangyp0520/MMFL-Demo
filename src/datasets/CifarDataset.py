@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 
 class CifarDataset(Dataset):
     def __init__(self, root, train=True, download=True, transform=None):
-        self.cifar10_dataset = torchvision.datasets.CIFAR10(root=root, train=train, download=download, transform=transform)
+        self.cifar10_dataset = torchvision.datasets.CIFAR100(root=root, train=train, download=download, transform=transform)
         self.sample_ids = list(range(len(self.cifar10_dataset)))
 
     def __len__(self):
