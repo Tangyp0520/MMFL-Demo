@@ -38,13 +38,13 @@ class ClientTrainer:
         self.criterion = nn.CrossEntropyLoss().to(self.device)
         if self.color:
             self.optimizer = optim.Adam([
-                {'params': classifier_params, 'weight_decay': self.weight_decay, 'lr': 0},
+                {'params': classifier_params, 'weight_decay': self.weight_decay},
                 {'params': color_params, 'weight_decay': self.weight_decay},
                 {'params': gray_params, 'weight_decay': self.weight_decay, 'lr': 0}
             ], lr=self.learning_rate, weight_decay=self.weight_decay)
         else:
             self.optimizer = optim.Adam([
-                {'params': classifier_params, 'weight_decay': self.weight_decay, 'lr': 0},
+                {'params': classifier_params, 'weight_decay': self.weight_decay},
                 {'params': color_params, 'weight_decay': self.weight_decay, 'lr': 0},
                 {'params': gray_params, 'weight_decay': self.weight_decay}
             ], lr=self.learning_rate, weight_decay=self.weight_decay)
@@ -100,7 +100,7 @@ class ClientTrainer:
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
         print(f'    Client {self.client_id} test loss avg: {sum(epoch_test_loss_list) / len(epoch_test_loss_list)}')
-        print(f'    Client {self.client_id} history accuracy on test set: {self.client_test_acc_rate_list}')
+        # print(f'    Client {self.client_id} history accuracy on test set: {self.client_test_acc_rate_list}')
         print(f'    Client {self.client_id} accuracy on test set: {(100 * correct / total):.2f}%')
         self.client_test_acc_rate_list.append(100 * correct / total)
         self.client_test_loss_list.append(sum(epoch_test_loss_list) / len(epoch_test_loss_list))

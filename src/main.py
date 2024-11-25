@@ -31,7 +31,7 @@ if __name__ == '__main__':
     print('MMFL train end.')
 
     print('Save result...')
-    file_head_name = '_mmfl_resnet_cifar100_'
+    file_head_name = '_mmfl_resnet_cifar100'
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
 

@@ -1,4 +1,5 @@
 import gc
+import random
 
 import torch
 import torch.nn as nn
@@ -33,10 +34,12 @@ class MMFl(object):
             {'params': gray_params, 'weight_decay': self.head_weight_decay, 'lr': 0}
         ], lr=self.head_learning_rate, weight_decay=self.head_weight_decay)
 
-        self.client_num = 2
+        self.client_num = 4
+        self.color_client_num = 2
+        self.gray_client_num = 2
         self.client_trainers = {}
         self.client_ids = []
-        for i, (dataset_type, color) in enumerate([('Cifar-gray', False), ('Cifar', True)]):
+        for i, (dataset_type, color) in enumerate([('Cifar-gray', False), ('Cifar', True), ('Cifar-gray', False), ('Cifar', True)]):
             self.client_trainers[i] = ClientTrainer(i, self.train_dataset, self.test_dataset, self.batch_size, color=color)
             self.client_ids.append(i)
 
@@ -47,7 +50,8 @@ class MMFl(object):
             client_trainer.print_info()
 
     def split_train_dataset_index(self):
-        all_idx = range(len(self.train_dataset))
+        all_idx = list(range(len(self.train_dataset)))
+        random.shuffle(all_idx)
         part_size = len(all_idx) // 5
         remainder = len(all_idx) % 5
         start = 0
@@ -77,14 +81,14 @@ class MMFl(object):
                 param.add_(update_per_layer)
 
         for name, param in self.global_model.color_model.state_dict().items():
-            update_per_layer = color_weight_accumulator[name]
+            update_per_layer = color_weight_accumulator[name] / self.color_client_num
             if param.type() != update_per_layer.type():
                 param.add_(update_per_layer.to(torch.int64))
             else:
                 param.add_(update_per_layer)
 
         for name, param in self.global_model.gray_model.state_dict().items():
-            update_per_layer = gray_weight_accumulator[name]
+            update_per_layer = gray_weight_accumulator[name] / self.gray_client_num
             if param.type() != update_per_layer.type():
                 param.add_(update_per_layer.to(torch.int64))
             else:
