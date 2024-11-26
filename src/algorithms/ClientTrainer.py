@@ -54,23 +54,23 @@ class ClientTrainer:
         self.client_test_acc_rate_list = []
 
     def print_info(self):
-        print(f'    Client ID: {self.client_id}')
-        print(f'    Client Device: {self.device}')
-        print(f'    Client Model: MultiModelForCifar')
-        print(f'    Client Local Round Num: {self.local_round_num}')
-        print(f'    Client Dataset Color: {self.color}')
-        print(f'    Client Dataset Batch Size: {self.batch_size}')
-        print(f'    Client Learning Rate: {self.learning_rate}')
+        print(f'        Client ID: {self.client_id}')
+        print(f'        Client {self.client_id} Device: {self.device}')
+        print(f'        Client {self.client_id} Model: MultiModelForCifar')
+        print(f'        Client {self.client_id} Local Round Num: {self.local_round_num}')
+        print(f'        Client {self.client_id} Dataset Color: {self.color}')
+        print(f'        Client {self.client_id} Dataset Batch Size: {self.batch_size}')
+        print(f'        Client {self.client_id} Learning Rate: {self.learning_rate}')
 
-    def train(self, global_model, mini_train_idx):
+    def train(self, silo_model, mini_train_idx):
         # 小批量数据集生成
         train_dataloader = generate_mini_dataloader(self.train_dataset, self.batch_size, mini_train_idx)
         # 模型聚合
-        print(f'    Client {self.client_id} model fusion...')
-        for name, param in global_model.state_dict().items():
+        # print(f'        Client {self.client_id} model fusion...')
+        for name, param in silo_model.state_dict().items():
             self.model.state_dict()[name].copy_(param.clone())
 
-        print(f'    Client {self.client_id} train...')
+        # print(f'        Client {self.client_id} train...')
         self.model.train()
         for epoch in range(self.local_round_num):
             for batch in train_dataloader:
@@ -83,7 +83,7 @@ class ClientTrainer:
                 loss.backward()
                 self.optimizer.step()
 
-        print(f'    Client {self.client_id} test...')
+        # print(f'        Client {self.client_id} test...')
         self.model.eval()
         total = 0
         correct = 0
@@ -99,21 +99,21 @@ class ClientTrainer:
                 _, predicted = torch.max(output.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
-        print(f'    Client {self.client_id} test loss avg: {sum(epoch_test_loss_list) / len(epoch_test_loss_list)}')
+        # print(f'        Client {self.client_id} test loss avg: {sum(epoch_test_loss_list) / len(epoch_test_loss_list)}')
         # print(f'    Client {self.client_id} history accuracy on test set: {self.client_test_acc_rate_list}')
-        print(f'    Client {self.client_id} accuracy on test set: {(100 * correct / total):.2f}%')
+        # print(f'        Client {self.client_id} accuracy on test set: {(100 * correct / total):.2f}%')
         self.client_test_acc_rate_list.append(100 * correct / total)
         self.client_test_loss_list.append(sum(epoch_test_loss_list) / len(epoch_test_loss_list))
 
-        print(f'    Client {self.client_id} create diff dict...')
+        # print(f'        Client {self.client_id} create diff dict...')
         classifier_diff = dict()
         for name, param in self.model.classifier.state_dict().items():
-            classifier_diff[name] = param - global_model.classifier.state_dict()[name]
+            classifier_diff[name] = param - silo_model.classifier.state_dict()[name]
         color_diff = dict()
         for name, param in self.model.color_model.state_dict().items():
-            color_diff[name] = param - global_model.color_model.state_dict()[name]
+            color_diff[name] = param - silo_model.color_model.state_dict()[name]
         gray_diff = dict()
         for name, param in self.model.gray_model.state_dict().items():
-            gray_diff[name] = param - global_model.gray_model.state_dict()[name]
+            gray_diff[name] = param - silo_model.gray_model.state_dict()[name]
         return classifier_diff, color_diff, gray_diff
 

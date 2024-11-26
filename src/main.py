@@ -8,6 +8,7 @@ import argparse
 import datetime
 
 from src.datasets.DataloaderGenerator import *
+from src.algorithms.SiloTrainer import *
 from src.algorithms.MMFL import *
 from src.utils.ExcelUtil import *
 
@@ -25,26 +26,21 @@ if __name__ == '__main__':
     print('MMFL train start...')
     print(f'Global Round Num: {global_round_num}')
     print(f'Dataset Root Path: {dataset_root_path}')
-    mmfl = MMFl(dataset_root_path)
+    mmfl = MMFL(dataset_root_path)
     for epoch in range(global_round_num):
         mmfl.train(epoch)
-    print('MMFL train end.')
+    print('MMFL train end...')
 
     print('Save result...')
-    file_head_name = '_mmfl_resnet_cifar100'
+    file_head_name = '_mmfl_resnet_cifar100_with_hfl_vfl_'
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
 
     head_test_loss_lists = mmfl.test_loss_list
     client_test_loss_lists = {}
-    for client_id, client_trainer in mmfl.client_trainers.items():
-        client_test_loss_lists[client_id] = client_trainer.client_test_loss_list
     excel_file_name = (date_str + file_head_name + 'loss')
-    save_acc_to_excel(excel_file_name, head_test_loss_lists, client_test_loss_lists)
+    save_acc_to_excel(excel_file_name, head_test_loss_lists, {})
 
     head_test_acc_rates = mmfl.test_acc_rate_list
-    client_test_acc_rates = {}
-    for client_id, client_trainer in mmfl.client_trainers.items():
-        client_test_acc_rates[client_id] = client_trainer.client_test_acc_rate_list
     excel_file_name = (date_str + file_head_name + 'acc')
-    save_acc_to_excel(excel_file_name, head_test_acc_rates, client_test_acc_rates)
+    save_acc_to_excel(excel_file_name, head_test_acc_rates, {})
