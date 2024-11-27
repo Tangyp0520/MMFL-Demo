@@ -15,7 +15,7 @@ class SiloTrainer(object):
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
         self.test_dataloader = DataLoader(dataset=self.test_dataset, batch_size=self.batch_size, shuffle=False)
 
-        self.device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
         self.silo_model = MultiModelForCifar(self.device)
         self.silo_model.to(self.device)
         self.silo_round_num = 2

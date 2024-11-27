@@ -159,7 +159,7 @@ if __name__ == '__main__':
     print('Local train end...')
 
     print('Save result...')
-    file_head_name = '_local_resnet_cifar100_'
+    file_head_name = '_local_resnet_cifar100_prox_'
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
 
