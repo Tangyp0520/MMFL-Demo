@@ -14,7 +14,7 @@ from src.datasets.DataloaderGenerator import *
 
 
 class ClientTrainer:
-    def __init__(self, client_id, train_dataset, test_dataset, batch_size, local_round_num=1, learning_rate=0.001, color=True):
+    def __init__(self, client_id, train_dataset, test_dataset, batch_size, local_round_num=5, learning_rate=0.001, color=1):
         self.client_id = client_id
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
@@ -27,7 +27,7 @@ class ClientTrainer:
         self.weight_decay = 0.001
         self.color = color
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
         self.model = MultiModelForCifar(self.device)
         self.model.to(self.device)
 
@@ -36,18 +36,26 @@ class ClientTrainer:
         gray_params = self.model.gray_model.parameters()
 
         self.criterion = nn.CrossEntropyLoss().to(self.device)
-        if self.color:
+        if self.color == 1:
             self.optimizer = optim.Adam([
                 {'params': classifier_params, 'weight_decay': self.weight_decay},
                 {'params': color_params, 'weight_decay': self.weight_decay},
                 {'params': gray_params, 'weight_decay': self.weight_decay, 'lr': 0}
             ], lr=self.learning_rate, weight_decay=self.weight_decay)
-        else:
+        elif self.color == 2:
             self.optimizer = optim.Adam([
                 {'params': classifier_params, 'weight_decay': self.weight_decay},
                 {'params': color_params, 'weight_decay': self.weight_decay, 'lr': 0},
                 {'params': gray_params, 'weight_decay': self.weight_decay}
             ], lr=self.learning_rate, weight_decay=self.weight_decay)
+        elif self.color == 3:
+            self.optimizer = optim.Adam([
+                {'params': classifier_params, 'weight_decay': self.weight_decay},
+                {'params': color_params, 'weight_decay': self.weight_decay},
+                {'params': gray_params, 'weight_decay': self.weight_decay}
+            ], lr=self.learning_rate, weight_decay=self.weight_decay)
+        else:
+            self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         # self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=200)
 
         self.client_test_loss_list = []
@@ -100,7 +108,7 @@ class ClientTrainer:
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
         # print(f'        Client {self.client_id} test loss avg: {sum(epoch_test_loss_list) / len(epoch_test_loss_list)}')
-        # print(f'    Client {self.client_id} history accuracy on test set: {self.client_test_acc_rate_list}')
+        # print(f'        Client {self.client_id} history accuracy on test set: {self.client_test_acc_rate_list}')
         # print(f'        Client {self.client_id} accuracy on test set: {(100 * correct / total):.2f}%')
         self.client_test_acc_rate_list.append(100 * correct / total)
         self.client_test_loss_list.append(sum(epoch_test_loss_list) / len(epoch_test_loss_list))

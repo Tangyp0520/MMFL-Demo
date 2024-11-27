@@ -17,7 +17,7 @@ from src.algorithms.ClientTrainer import *
 from src.utils.ExcelUtil import *
 
 
-class LocalTrainer(object):
+class VFLTrainer(object):
     def __init__(self, dataset_root_path):
         self.batch_size = 128
         self.train_dataset, self.test_dataset = generate_dataset('Multiple', dataset_root_path)
@@ -31,10 +31,12 @@ class LocalTrainer(object):
 
         self.criterion = nn.CrossEntropyLoss().to(self.device)
 
-        self.client_num = 1
+        self.client_num = 2
+        self.color_client_num = 1
+        self.gray_client_num = 1
         self.client_trainers = {}
         self.client_ids = []
-        for i, (dataset_type, color) in enumerate([('Multiple', 3)]):
+        for i, (dataset_type, color) in enumerate([('Cifar', 1), ('Cifar-gray', 2)]):
             self.client_trainers[i] = ClientTrainer(i, self.train_dataset, self.test_dataset, self.batch_size, color=color)
             self.client_ids.append(i)
 
@@ -56,14 +58,14 @@ class LocalTrainer(object):
             start = end
 
     def print_info(self):
-        print(f'    Local Model: ClassifierModel')
-        print(f'    Local Dataset: CIFAR100')
-        print(f'    Local Client Num: {self.client_num}')
+        print(f'    VFL Model: ClassifierModel')
+        print(f'    VFL Dataset: CIFAR100')
+        print(f'    VFL Client Num: {self.client_num}')
         for _, client_trainer in self.client_trainers.items():
             client_trainer.print_info()
 
     def model_aggregate(self, classifier_weight_accumulator, color_weight_accumulator, gray_weight_accumulator):
-        print(f'    Local Model Aggregate...')
+        print(f'    VFL Model Aggregate...')
         for name, param in self.global_model.classifier.state_dict().items():
             update_per_layer = classifier_weight_accumulator[name] / self.client_num
             if param.type() != update_per_layer.type():
@@ -72,14 +74,14 @@ class LocalTrainer(object):
                 param.add_(update_per_layer)
 
         for name, param in self.global_model.color_model.state_dict().items():
-            update_per_layer = color_weight_accumulator[name] / self.client_num
+            update_per_layer = color_weight_accumulator[name] / self.color_client_num
             if param.type() != update_per_layer.type():
                 param.add_(update_per_layer.to(torch.int64))
             else:
                 param.add_(update_per_layer)
 
         for name, param in self.global_model.gray_model.state_dict().items():
-            update_per_layer = gray_weight_accumulator[name] / self.client_num
+            update_per_layer = gray_weight_accumulator[name] / self.gray_client_num
             if param.type() != update_per_layer.type():
                 param.add_(update_per_layer.to(torch.int64))
             else:
@@ -93,7 +95,7 @@ class LocalTrainer(object):
             self.global_model(color, gray)
 
     def model_eval(self):
-        print(f'    Local Model Evaluation...')
+        print(f'    VFL Model Evaluation...')
         self.model_train()
         self.global_model.eval()
         total = 0
@@ -110,14 +112,14 @@ class LocalTrainer(object):
                 _, predicted = torch.max(output.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
-        print(f'    Local test loss avg: {sum(epoch_loss_list) / len(epoch_loss_list)}')
-        print(f'    Local history accuracy on test set: {self.test_acc_rate_list}')
-        print(f'    Local accuracy on test set: {(100 * correct / total):.2f}%')
+        print(f'    HFL test loss avg: {sum(epoch_loss_list) / len(epoch_loss_list)}')
+        print(f'    HFL history accuracy on test set: {self.test_acc_rate_list}')
+        print(f'    HFL accuracy on test set: {(100 * correct / total):.2f}%')
         self.test_acc_rate_list.append(100 * correct / total)
         self.test_loss_list.append(sum(epoch_loss_list) / len(epoch_loss_list))
 
     def train(self, epoch):
-        print(f'    Local train epoch: {epoch}')
+        print(f'    VFL train epoch: {epoch}')
         mini_train_idx = self.train_idx[epoch % len(self.train_idx)]
 
         classifier_weight_accumulator = {}
@@ -144,30 +146,30 @@ class LocalTrainer(object):
 
 
 if __name__ == '__main__':
-    print("This is Local Demo")
+    print("This is VFL Demo")
     # dataset_root_path = 'D:\\.download\\ModelNet10\\dataset'
     # dataset_root_path = '/home/data2/duwenfeng/datasets/ModelNet10'
     # dataset_root_path = 'D:\.download\MNIST-M\data\mnist_m'
     dataset_root_path = '/home/data2/duwenfeng/datasets/MNIST'
     global_round_num = 50
 
-    print('Local train start...')
+    print('VFL train start...')
     print(f'Global Round Num: {global_round_num}')
-    local = LocalTrainer(dataset_root_path)
+    vfl = VFLTrainer(dataset_root_path)
     for epoch in range(global_round_num):
-        local.train(epoch)
-    print('Local train end...')
+        vfl.train(epoch)
+    print('VFL train end...')
 
     print('Save result...')
-    file_head_name = '_local_resnet_cifar100_'
+    file_head_name = '_vfl_resnet_cifar100_'
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
 
-    head_test_loss_lists = local.test_loss_list
+    head_test_loss_lists = vfl.test_loss_list
     client_test_loss_lists = {}
     excel_file_name = (date_str + file_head_name + 'loss')
     save_acc_to_excel(excel_file_name, head_test_loss_lists, {})
 
-    head_test_acc_rates = local.test_acc_rate_list
+    head_test_acc_rates = vfl.test_acc_rate_list
     excel_file_name = (date_str + file_head_name + 'acc')
     save_acc_to_excel(excel_file_name, head_test_acc_rates, {})

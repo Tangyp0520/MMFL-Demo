@@ -9,38 +9,33 @@ import datetime
 
 from src.datasets.DataloaderGenerator import *
 from src.algorithms.SiloTrainer import *
-from src.algorithms.MMFL import *
+from src.algorithms.HFM import *
 from src.utils.ExcelUtil import *
 
 parser = argparse.ArgumentParser(description='MMFL')
 args = parser.parse_args()
 
 if __name__ == '__main__':
-    print("This is MMFL Demo")
-    # dataset_root_path = 'D:\\.download\\ModelNet10\\dataset'
-    # dataset_root_path = '/home/data2/duwenfeng/datasets/ModelNet10'
-    # dataset_root_path = 'D:\.download\MNIST-M\data\mnist_m'
+    print("This is HFM Demo")
     dataset_root_path = '/home/data2/duwenfeng/datasets/MNIST'
-    global_round_num = 100
+    global_round_num = 50
 
-    print('MMFL train start...')
+    print('HFM train start...')
     print(f'Global Round Num: {global_round_num}')
-    print(f'Dataset Root Path: {dataset_root_path}')
-    mmfl = MMFL(dataset_root_path)
+    hfm = HFM(dataset_root_path)
     for epoch in range(global_round_num):
-        mmfl.train(epoch)
-    print('MMFL train end...')
+        hfm.train(epoch)
+    print('HFM train end...')
 
     print('Save result...')
-    file_head_name = '_mmfl_resnet_cifar100_with_hfl_vfl_'
+    file_head_name = '_hfm_resnet_cifar100_'
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
 
-    head_test_loss_lists = mmfl.test_loss_list
-    client_test_loss_lists = {}
+    head_test_loss_lists = hfm.test_loss_list
     excel_file_name = (date_str + file_head_name + 'loss')
     save_acc_to_excel(excel_file_name, head_test_loss_lists, {})
 
-    head_test_acc_rates = mmfl.test_acc_rate_list
+    head_test_acc_rates = hfm.test_acc_rate_list
     excel_file_name = (date_str + file_head_name + 'acc')
     save_acc_to_excel(excel_file_name, head_test_acc_rates, {})

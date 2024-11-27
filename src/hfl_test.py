@@ -1,43 +1,42 @@
+import sys
+
+sys.path.append('./')
+sys.path.append('../')
+sys.path.append('../../')
+
+import gc
+import random
+import datetime
+
 import torch
 import torch.nn as nn
+
 from src.models.ClassfierModel import *
 from src.models.MultiModelForCifar import *
-from src.algorithms.SiloTrainer import *
+from src.algorithms.ClientTrainer import *
+from src.utils.ExcelUtil import *
 
 
-class MMFL(object):
+class HFLTrainer(object):
     def __init__(self, dataset_root_path):
-        self.dataset_root_path = dataset_root_path
         self.batch_size = 128
         self.train_dataset, self.test_dataset = generate_dataset('Multiple', dataset_root_path)
-        self.train_dataloader = DataLoader(dataset=self.train_dataset, batch_size=self.batch_size, shuffle=True)
         self.test_dataloader = DataLoader(dataset=self.test_dataset, batch_size=self.batch_size, shuffle=False)
         self.train_idx = []
         self.split_train_dataset_index()
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
         self.global_model = MultiModelForCifar(self.device)
         self.global_model.to(self.device)
-        self.global_round_num = 1
-        self.global_learning_rate = 0.001
-        self.global_weight_decay = 0.001
 
         self.criterion = nn.CrossEntropyLoss().to(self.device)
-        classifier_params = self.global_model.classifier.parameters()
-        color_params = self.global_model.color_model.parameters()
-        gray_params = self.global_model.gray_model.parameters()
-        self.optimizer = optim.Adam([
-            {'params': classifier_params, 'weight_decay': self.global_weight_decay},
-            {'params': color_params, 'weight_decay': self.global_weight_decay, 'lr': 0},
-            {'params': gray_params, 'weight_decay': self.global_weight_decay, 'lr': 0}
-        ], lr=self.global_learning_rate, weight_decay=self.global_weight_decay)
 
-        self.silo_num = 2
-        self.silo_trainers = {}
-        self.silo_ids = []
-        for i in range(self.silo_num):
-            self.silo_trainers[i] = SiloTrainer(i, self.train_dataset, self.test_dataset, self.batch_size)
-            self.silo_ids.append(i)
+        self.client_num = 5
+        self.client_trainers = {}
+        self.client_ids = []
+        for i, (dataset_type, color) in enumerate([('Multiple', 3), ('Multiple', 3), ('Multiple', 3), ('Multiple', 3), ('Multiple', 3)]):
+            self.client_trainers[i] = ClientTrainer(i, self.train_dataset, self.test_dataset, self.batch_size, color=color)
+            self.client_ids.append(i)
 
         self.test_loss_list = []
         self.test_acc_rate_list = []
@@ -45,65 +44,57 @@ class MMFL(object):
 
     def split_train_dataset_index(self):
         all_idx = list(range(len(self.train_dataset)))
+        part_num = 10
         random.shuffle(all_idx)
-        part_size = len(all_idx) // 5
-        remainder = len(all_idx) % 5
+        part_size = len(all_idx) // part_num
+        remainder = len(all_idx) % part_num
         start = 0
 
-        for i in range(5):
+        for i in range(part_num):
             end = start + part_size + (1 if i < remainder else 0)
             self.train_idx.append(all_idx[start:end])
             start = end
 
     def print_info(self):
-        print(f'MMFL Device: {self.device}')
-        print(f'MMFL Silo Num: {self.silo_num}')
-        print(f'MMFL Dataset: CIFAR100')
-        for _, silo_trainer in self.silo_trainers.items():
-            silo_trainer.print_info()
+        print(f'    HFL Model: ClassifierModel')
+        print(f'    HFL Dataset: CIFAR100')
+        print(f'    HFL Client Num: {self.client_num}')
+        for _, client_trainer in self.client_trainers.items():
+            client_trainer.print_info()
 
     def model_aggregate(self, classifier_weight_accumulator, color_weight_accumulator, gray_weight_accumulator):
-        print(f'    MMFL Model Aggregate...')
+        print(f'    HFL Model Aggregate...')
         for name, param in self.global_model.classifier.state_dict().items():
-            update_per_layer = classifier_weight_accumulator[name] / self.silo_num
+            update_per_layer = classifier_weight_accumulator[name] / self.client_num
             if param.type() != update_per_layer.type():
                 param.add_(update_per_layer.to(torch.int64))
             else:
                 param.add_(update_per_layer)
 
         for name, param in self.global_model.color_model.state_dict().items():
-            update_per_layer = color_weight_accumulator[name] / self.silo_num
+            update_per_layer = color_weight_accumulator[name] / self.client_num
             if param.type() != update_per_layer.type():
                 param.add_(update_per_layer.to(torch.int64))
             else:
                 param.add_(update_per_layer)
 
         for name, param in self.global_model.gray_model.state_dict().items():
-            update_per_layer = gray_weight_accumulator[name] / self.silo_num
+            update_per_layer = gray_weight_accumulator[name] / self.client_num
             if param.type() != update_per_layer.type():
                 param.add_(update_per_layer.to(torch.int64))
             else:
                 param.add_(update_per_layer)
 
-    def model_train(self, mini_train_idx):
-        print(f'    MMFL Model Training...')
-        train_dataloader = generate_mini_dataloader(self.train_dataset, self.batch_size, mini_train_idx)
-
+    def model_train(self):
         self.global_model.train()
-        for _ in range(self.global_round_num):
-            for batch in train_dataloader:
-                color, gray, labels, _ = batch
-                color, gray, labels = color.to(self.device), gray.to(self.device), labels.to(self.device)
-
-                self.optimizer.zero_grad()
-                output = self.global_model(color, gray)
-
-                loss = self.criterion(output, labels)
-                loss.backward()
-                self.optimizer.step()
+        for batch in self.test_dataloader:
+            color, gray, labels, _ = batch
+            color, gray, labels = color.to(self.device), gray.to(self.device), labels.to(self.device)
+            self.global_model(color, gray)
 
     def model_eval(self):
-        print(f'    MMFL Model Evaluation...')
+        print(f'    HFL Model Evaluation...')
+        self.model_train()
         self.global_model.eval()
         total = 0
         correct = 0
@@ -119,14 +110,14 @@ class MMFL(object):
                 _, predicted = torch.max(output.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
-        print(f'    MMFL test loss avg: {sum(epoch_loss_list) / len(epoch_loss_list)}')
-        print(f'    MMFL history accuracy on test set: {self.test_acc_rate_list}')
-        print(f'    MMFL accuracy on test set: {(100 * correct / total):.2f}%')
+        print(f'    HFL test loss avg: {sum(epoch_loss_list) / len(epoch_loss_list)}')
+        print(f'    HFL history accuracy on test set: {self.test_acc_rate_list}')
+        print(f'    HFL accuracy on test set: {(100 * correct / total):.2f}%')
         self.test_acc_rate_list.append(100 * correct / total)
         self.test_loss_list.append(sum(epoch_loss_list) / len(epoch_loss_list))
 
     def train(self, epoch):
-        print(f'    MMFL train epoch: {epoch}')
+        print(f'    HFL train epoch: {epoch}')
         mini_train_idx = self.train_idx[epoch % len(self.train_idx)]
 
         classifier_weight_accumulator = {}
@@ -139,8 +130,8 @@ class MMFL(object):
         for name, param in self.global_model.gray_model.state_dict().items():
             gray_weight_accumulator[name] = torch.zeros_like(param)
 
-        for silo_id, silo in self.silo_trainers.items():
-            classifier_diff, color_diff, gray_diff = silo.train(self.global_model, mini_train_idx)
+        for _, client in self.client_trainers.items():
+            classifier_diff, color_diff, gray_diff = client.train(self.global_model, mini_train_idx)
             for name, param in classifier_diff.items():
                 classifier_weight_accumulator[name].add_(classifier_diff[name])
             for name, param in color_diff.items():
@@ -149,5 +140,34 @@ class MMFL(object):
                 gray_weight_accumulator[name].add_(gray_diff[name])
 
         self.model_aggregate(classifier_weight_accumulator, color_weight_accumulator, gray_weight_accumulator)
-        self.model_train(mini_train_idx)
         self.model_eval()
+
+
+if __name__ == '__main__':
+    print("This is HFL Demo")
+    # dataset_root_path = 'D:\\.download\\ModelNet10\\dataset'
+    # dataset_root_path = '/home/data2/duwenfeng/datasets/ModelNet10'
+    # dataset_root_path = 'D:\.download\MNIST-M\data\mnist_m'
+    dataset_root_path = '/home/data2/duwenfeng/datasets/MNIST'
+    global_round_num = 50
+
+    print('HFL train start...')
+    print(f'Global Round Num: {global_round_num}')
+    hfl = HFLTrainer(dataset_root_path)
+    for epoch in range(global_round_num):
+        hfl.train(epoch)
+    print('HFL train end...')
+
+    print('Save result...')
+    file_head_name = '_hfl_resnet_cifar100_'
+    current_time = datetime.datetime.now()
+    date_str = current_time.strftime('%Y_%m_%d')
+
+    head_test_loss_lists = hfl.test_loss_list
+    client_test_loss_lists = {}
+    excel_file_name = (date_str + file_head_name + 'loss')
+    save_acc_to_excel(excel_file_name, head_test_loss_lists, {})
+
+    head_test_acc_rates = hfl.test_acc_rate_list
+    excel_file_name = (date_str + file_head_name + 'acc')
+    save_acc_to_excel(excel_file_name, head_test_acc_rates, {})

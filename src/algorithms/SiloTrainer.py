@@ -14,58 +14,30 @@ class SiloTrainer(object):
         self.batch_size = batch_size
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
         self.test_dataloader = DataLoader(dataset=self.test_dataset, batch_size=self.batch_size, shuffle=False)
-        # self.train_idx = []
-        # self.split_train_dataset_index()
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
         self.silo_model = MultiModelForCifar(self.device)
         self.silo_model.to(self.device)
-        self.silo_round_num = 1
-        self.head_round_num = 1
-        self.head_learning_rate = 0.001
-        self.head_weight_decay = 0.001
+        self.silo_round_num = 2
 
         self.criterion = nn.CrossEntropyLoss().to(self.device)
-        classifier_params = self.silo_model.classifier.parameters()
-        color_params = self.silo_model.color_model.parameters()
-        gray_params = self.silo_model.gray_model.parameters()
-        self.optimizer = optim.Adam([
-            {'params': classifier_params, 'weight_decay': self.head_weight_decay},
-            {'params': color_params, 'weight_decay': self.head_weight_decay, 'lr': 0},
-            {'params': gray_params, 'weight_decay': self.head_weight_decay, 'lr': 0}
-        ], lr=self.head_learning_rate, weight_decay=self.head_weight_decay)
 
-        self.client_num = 4
-        self.color_client_num = 2
-        self.gray_client_num = 2
+        self.client_num = 2
+        self.color_client_num = 1
+        self.gray_client_num = 1
         self.client_trainers = {}
         self.client_ids = []
-        for i, (dataset_type, color) in enumerate([('Cifar-gray', False), ('Cifar', True), ('Cifar-gray', False), ('Cifar', True)]):
+        for i, (dataset_type, color) in enumerate([('Cifar', 1), ('Cifar-gray', 2)]):
             self.client_trainers[i] = ClientTrainer(i, self.train_dataset, self.test_dataset, self.batch_size, color=color)
             self.client_ids.append(i)
 
         self.test_loss_list = []
         self.test_acc_rate_list = []
-        # self.print_info()
-
-    # def split_train_dataset_index(self):
-    #     all_idx = list(range(len(self.train_dataset)))
-    #     random.shuffle(all_idx)
-    #     part_size = len(all_idx) // 5
-    #     remainder = len(all_idx) % 5
-    #     start = 0
-    #
-    #     for i in range(5):
-    #         end = start + part_size + (1 if i < remainder else 0)
-    #         self.train_idx.append(all_idx[start:end])
-    #         start = end
 
     def print_info(self):
         print(f'    Silo {self.silo_id} Model: ClassifierModel')
-        print(f'    Silo {self.silo_id} Round Num: {self.head_round_num}')
+        print(f'    Silo {self.silo_id} Round Num: {self.silo_round_num}')
         print(f'    Silo {self.silo_id} Dataset: CIFAR100')
-        print(f'    Silo {self.silo_id} Dataset Batch Size: {self.batch_size}')
-        print(f'    Silo {self.silo_id} Learning rate: {self.head_learning_rate}')
         print(f'    Silo {self.silo_id} Client Num: {self.client_num}')
         for _, client_trainer in self.client_trainers.items():
             client_trainer.print_info()
@@ -93,25 +65,16 @@ class SiloTrainer(object):
             else:
                 param.add_(update_per_layer)
 
-    def model_train(self, mini_train_idx):
-        print(f'    Silo {self.silo_id} Model Training...')
-        train_dataloader = generate_mini_dataloader(self.train_dataset, self.batch_size, mini_train_idx)
-
+    def model_train(self):
         self.silo_model.train()
-        for _ in range(self.head_round_num):
-            for batch in train_dataloader:
-                color, gray, labels, _ = batch
-                color, gray, labels = color.to(self.device), gray.to(self.device), labels.to(self.device)
-
-                self.optimizer.zero_grad()
-                output = self.silo_model(color, gray)
-
-                loss = self.criterion(output, labels)
-                loss.backward()
-                self.optimizer.step()
+        for batch in self.test_dataloader:
+            color, gray, labels, _ = batch
+            color, gray, labels = color.to(self.device), gray.to(self.device), labels.to(self.device)
+            output = self.silo_model(color, gray)
 
     def model_eval(self):
         print(f'    Silo {self.silo_id} Model Evaluation...')
+        self.model_train()
         self.silo_model.eval()
         total = 0
         correct = 0
@@ -133,10 +96,7 @@ class SiloTrainer(object):
         self.test_acc_rate_list.append(100 * correct / total)
         self.test_loss_list.append(sum(epoch_loss_list) / len(epoch_loss_list))
 
-    def silo_train(self, epoch, mini_train_idx):
-        # print(f'    Silo {self.silo_id} train epoch: {epoch}')
-        # mini_train_idx = self.train_idx[epoch % len(self.train_idx)]
-
+    def silo_train(self, mini_train_idx):
         classifier_weight_accumulator = {}
         for name, param in self.silo_model.classifier.state_dict().items():
             classifier_weight_accumulator[name] = torch.zeros_like(param)
@@ -157,8 +117,6 @@ class SiloTrainer(object):
                 gray_weight_accumulator[name].add_(gray_diff[name])
 
         self.model_aggregate(classifier_weight_accumulator, color_weight_accumulator, gray_weight_accumulator)
-        self.model_train(mini_train_idx)
-        # self.model_eval()
 
     def train(self, global_model, mini_train_idx):
         print(f'    Silo {self.silo_id} model fusion...')
@@ -166,8 +124,8 @@ class SiloTrainer(object):
             self.silo_model.state_dict()[name].copy_(param.clone())
 
         print(f'    Silo {self.silo_id} training...')
-        for epoch in range(self.silo_round_num):
-            self.silo_train(epoch, mini_train_idx)
+        for _ in range(self.silo_round_num):
+            self.silo_train(mini_train_idx)
 
         print(f'    Silo {self.silo_id} test...')
         self.model_eval()
