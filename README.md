@@ -17,5 +17,5 @@ HFM到后期损失上升 可能过拟合
 
 ### 后续修改思路
 1. HFL和HFM应当修改服务器仅聚合分类器
-2. 加上fedProx
-3. 加上lf_scheduler
+2. ~~加上fedProx~~
+3. ~~加上lf_scheduler~~

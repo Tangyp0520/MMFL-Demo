@@ -9,13 +9,14 @@ from src.algorithms.ClientTrainer import *
 
 
 class SiloTrainer(object):
-    def __init__(self, silo_id, train_dataset, test_dataset, batch_size):
+    def __init__(self, silo_id, args, train_dataset, test_dataset, batch_size):
         self.silo_id = silo_id
+        self.args = args
         self.batch_size = batch_size
         self.train_dataset, self.test_dataset = train_dataset, test_dataset
         self.test_dataloader = DataLoader(dataset=self.test_dataset, batch_size=self.batch_size, shuffle=False)
 
-        self.device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(self.args.cuda if torch.cuda.is_available() else "cpu")
         self.silo_model = MultiModelForCifar(self.device)
         self.silo_model.to(self.device)
         self.silo_round_num = 2
@@ -28,7 +29,7 @@ class SiloTrainer(object):
         self.client_trainers = {}
         self.client_ids = []
         for i, (dataset_type, color) in enumerate([('Cifar', 1), ('Cifar-gray', 2)]):
-            self.client_trainers[i] = ClientTrainer(i, self.train_dataset, self.test_dataset, self.batch_size, color=color)
+            self.client_trainers[i] = ClientTrainer(i, self.args, self.train_dataset, self.test_dataset, self.batch_size, color=color)
             self.client_ids.append(i)
 
         self.test_loss_list = []
