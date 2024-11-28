@@ -111,16 +111,27 @@ def read_excel(file_name, col_idx, color, line_style, label):
 # acc_lines = [local_simple_resnet_cifar100_multi_acc, local_simple_resnet_cifar100_color_acc, local_simple_resnet_cifar100_gray_acc,
 #              mmfl_simple_resnet_cifar100_acc, mmfl_simple_resnet_cifar100_with_hfl_acc]
 
-local_multi_loss = read_excel('2024_11_27_local_resnet_cifar100_loss', col_idx=0, color='b', line_style='-', label='local multi loss')
-local_multi_acc = read_excel('2024_11_27_local_resnet_cifar100_acc', col_idx=0, color='b', line_style='-', label='local multi acc')
-hfl_multi_loss = read_excel('2024_11_26_hfl_resnet_cifar100_loss', col_idx=0, color='g', line_style='-', label='hfl multi loss')
-hfl_multi_acc = read_excel('2024_11_26_hfl_resnet_cifar100_acc', col_idx=0, color='g', line_style='-', label='hfl multi acc')
-vfl_multi_loss = read_excel('2024_11_27_vfl_resnet_cifar100_loss', col_idx=0, color='y', line_style='-', label='vfl multi loss')
-vfl_multi_acc = read_excel('2024_11_27_vfl_resnet_cifar100_acc', col_idx=0, color='y', line_style='-', label='vfl multi acc')
-hfm_multi_loss = read_excel('2024_11_27_hfm_resnet_cifar100_loss', col_idx=0, color='r', line_style='-', label='hfm multi loss')
-hfm_multi_acc = read_excel('2024_11_27_hfm_resnet_cifar100_acc', col_idx=0, color='r', line_style='-', label='hfm multi acc')
+local_multi_loss = read_excel('2024_11_27_local_resnet_cifar100_loss', col_idx=0, color='b', line_style='--', label='local multi loss')
+local_multi_acc = read_excel('2024_11_27_local_resnet_cifar100_acc', col_idx=0, color='b', line_style='--', label='local multi acc')
+hfl_multi_loss = read_excel('2024_11_26_hfl_resnet_cifar100_loss', col_idx=0, color='g', line_style='--', label='hfl multi loss')
+hfl_multi_acc = read_excel('2024_11_26_hfl_resnet_cifar100_acc', col_idx=0, color='g', line_style='--', label='hfl multi acc')
+vfl_multi_loss = read_excel('2024_11_27_vfl_resnet_cifar100_loss', col_idx=0, color='y', line_style='--', label='vfl multi loss')
+vfl_multi_acc = read_excel('2024_11_27_vfl_resnet_cifar100_acc', col_idx=0, color='y', line_style='--', label='vfl multi acc')
+hfm_multi_loss = read_excel('2024_11_27_hfm_resnet_cifar100_loss', col_idx=0, color='r', line_style='--', label='hfm multi loss')
+hfm_multi_acc = read_excel('2024_11_27_hfm_resnet_cifar100_acc', col_idx=0, color='r', line_style='--', label='hfm multi acc')
 
-loss_lines = [local_multi_loss, hfl_multi_loss, vfl_multi_loss, hfm_multi_loss]
-acc_lines = [local_multi_acc, hfl_multi_acc, vfl_multi_acc, hfm_multi_acc]
+local_multi_loss_prox = read_excel('2024_11_27_local_resnet_cifar100_prox_loss', col_idx=0, color='b', line_style='-', label='local multi prox loss')
+local_multi_acc_prox = read_excel('2024_11_27_local_resnet_cifar100_prox_acc', col_idx=0, color='b', line_style='-', label='local multi prox acc')
+hfl_multi_loss_prox = read_excel('2024_11_27_hfl_resnet_cifar100_prox_loss', col_idx=0, color='g', line_style='-', label='hfl multi prox loss')
+hfl_multi_acc_prox = read_excel('2024_11_27_hfl_resnet_cifar100_prox_acc', col_idx=0, color='g', line_style='-', label='hfl multi prox acc')
+vfl_multi_loss_prox = read_excel('2024_11_27_vfl_resnet_cifar100_prox_loss', col_idx=0, color='y', line_style='-', label='vfl multi prox loss')
+vfl_multi_acc_prox = read_excel('2024_11_27_vfl_resnet_cifar100_prox_acc', col_idx=0, color='y', line_style='-', label='vfl multi prox acc')
+hfm_multi_loss_prox = read_excel('2024_11_28_hfm_resnet_cifar100_prox_loss', col_idx=0, color='r', line_style='-', label='hfm multi prox loss')
+hfm_multi_acc_prox = read_excel('2024_11_28_hfm_resnet_cifar100_prox_acc', col_idx=0, color='r', line_style='-', label='hfm multi prox acc')
+
+loss_lines = [local_multi_loss, hfl_multi_loss, vfl_multi_loss, hfm_multi_loss,
+              local_multi_loss_prox, hfl_multi_loss_prox, vfl_multi_loss_prox, hfm_multi_loss_prox]
+acc_lines = [local_multi_acc, hfl_multi_acc, vfl_multi_acc, hfm_multi_acc,
+             local_multi_acc_prox, hfl_multi_acc_prox, vfl_multi_acc_prox, hfm_multi_acc_prox]
 draw_line(loss_lines, x_label='Round', y_label='Loss', title='Loss Curve', file_name='cifar100_resnet_loss')
 draw_line(acc_lines, x_label='Round', y_label='Acc', title='Accuracy Curve', file_name='cifar100_resnet_acc')

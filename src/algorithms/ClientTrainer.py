@@ -14,7 +14,7 @@ from src.datasets.DataloaderGenerator import *
 
 
 class ClientTrainer:
-    def __init__(self, client_id, args, train_dataset, test_dataset, batch_size, local_round_num=5, learning_rate=0.01, color=1):
+    def __init__(self, client_id, args, train_dataset, test_dataset, batch_size, local_round_num=5, learning_rate=0.001, color=1):
         self.client_id = client_id
         self.args = args
         self.train_dataset = train_dataset
@@ -58,7 +58,7 @@ class ClientTrainer:
             ], lr=self.learning_rate, weight_decay=self.weight_decay)
         else:
             self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
-        self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=150, eta_min=0.00001)
+        # self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=150, eta_min=0.00001)
 
         self.client_test_loss_list = []
         self.client_test_acc_rate_list = []
@@ -96,11 +96,11 @@ class ClientTrainer:
                 self.optimizer.zero_grad()
                 output = self.model(color, gray)
                 loss = self.criterion(output, labels)
-                # prox_loss = self.compute_prox_loss(global_model)
-                # loss += self.prox_lamda * prox_loss
+                prox_loss = self.compute_prox_loss(global_model)
+                loss += self.prox_lamda * prox_loss
                 loss.backward()
                 self.optimizer.step()
-            self.scheduler.step()
+            # self.scheduler.step()
 
         # print(f'        Client {self.client_id} test...')
         self.model.eval()
@@ -113,8 +113,8 @@ class ClientTrainer:
                 color, gray, labels = color.to(self.device), gray.to(self.device), labels.to(self.device)
                 output = self.model(color, gray)
                 loss = self.criterion(output, labels)
-                # prox_loss = self.compute_prox_loss(global_model)
-                # loss += self.prox_lamda * prox_loss
+                prox_loss = self.compute_prox_loss(global_model)
+                loss += self.prox_lamda * prox_loss
                 epoch_test_loss_list.append(loss.item())
 
                 _, predicted = torch.max(output.data, 1)

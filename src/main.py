@@ -50,7 +50,6 @@ if __name__ == '__main__':
     print(f'{args.exp_type} train end...')
 
     print('Save result...')
-    # file_head_name = '_hfm_resnet_cifar100_prox_'
     file_head_name = '_' + args.file_name + '_'
     current_time = datetime.datetime.now()
     date_str = current_time.strftime('%Y_%m_%d')
